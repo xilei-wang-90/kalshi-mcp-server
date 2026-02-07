@@ -18,3 +18,8 @@ class Order:
     side: str
     quantity: int
     price: Optional[int] = None
+
+
+@dataclass
+class TagsByCategories:
+    tags_by_categories: dict[str, list[str]]

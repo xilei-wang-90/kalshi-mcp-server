@@ -1,15 +1,12 @@
 """Application-level use cases."""
 
-from typing import Iterable
-
 from .kalshi_client import KalshiClient
-from .models import Market
+from .models import TagsByCategories
 
 
-class MarketService:
+class MetadataService:
     def __init__(self, client: KalshiClient) -> None:
         self._client = client
 
-    def list_markets(self) -> Iterable[Market]:
-        # TODO: Implement using client
-        return []
+    def get_tags_for_series_categories(self) -> TagsByCategories:
+        return self._client.get_tags_for_series_categories()
