@@ -9,7 +9,11 @@ from typing import TextIO
 
 from .kalshi_client import KalshiClient
 from .mcp.handlers import ToolHandler, build_tool_handlers
-from .mcp.schema import GET_TAGS_FOR_SERIES_CATEGORIES_TOOL
+from .mcp.schema import (
+    GET_CATEGORIES_TOOL,
+    GET_TAGS_FOR_SERIES_CATEGORIES_TOOL,
+    GET_TAGS_FOR_SERIES_CATEGORY_TOOL,
+)
 from .services import MetadataService
 from .settings import Settings, load_settings
 
@@ -22,7 +26,11 @@ class ToolRegistry:
         self._handlers = handlers
 
     def list_tools(self) -> list[dict[str, Any]]:
-        return [GET_TAGS_FOR_SERIES_CATEGORIES_TOOL]
+        return [
+            GET_TAGS_FOR_SERIES_CATEGORIES_TOOL,
+            GET_CATEGORIES_TOOL,
+            GET_TAGS_FOR_SERIES_CATEGORY_TOOL,
+        ]
 
     def call_tool(self, tool_name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:
         handler = self._handlers.get(tool_name)

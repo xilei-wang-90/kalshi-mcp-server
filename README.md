@@ -5,6 +5,15 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
 - `get_tags_for_series_categories`
   - Calls Kalshi public endpoint: `GET /search/tags_by_categories`
   - No API key required
+- `get_categories`
+  - Calls Kalshi public endpoint: `GET /search/tags_by_categories`
+  - Returns only the category names
+  - No API key required
+- `get_tags_for_series_category`
+  - Calls Kalshi public endpoint: `GET /search/tags_by_categories`
+  - Requires one argument: `category` (exact category name)
+  - Returns tags for the selected category
+  - No API key required
 
 ## Configuration
 - `KALSHI_API_BASE_URL`

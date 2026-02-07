@@ -10,7 +10,14 @@ class StdioServerTests(unittest.TestCase):
         handlers = {
             "get_tags_for_series_categories": lambda arguments: {
                 "tags_by_categories": {"Politics": ["Trump", "Biden"]}
-            }
+            },
+            "get_categories": lambda arguments: {
+                "categories": ["Politics"]
+            },
+            "get_tags_for_series_category": lambda arguments: {
+                "category": arguments["category"],
+                "tags": ["Trump", "Biden"],
+            },
         }
         registry = ToolRegistry(handlers)
         stdin = io.StringIO(
@@ -54,6 +61,17 @@ class StdioServerTests(unittest.TestCase):
                             },
                         }
                     ),
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 4,
+                            "method": "tools/call",
+                            "params": {
+                                "name": "get_tags_for_series_category",
+                                "arguments": {"category": "Politics"},
+                            },
+                        }
+                    ),
                 ]
             )
             + "\n"
@@ -64,7 +82,7 @@ class StdioServerTests(unittest.TestCase):
         server.run()
 
         lines = [line for line in stdout.getvalue().splitlines() if line.strip()]
-        self.assertEqual(3, len(lines))
+        self.assertEqual(4, len(lines))
 
         initialize_response = json.loads(lines[0])
         self.assertEqual("2.0", initialize_response["jsonrpc"])
@@ -75,10 +93,14 @@ class StdioServerTests(unittest.TestCase):
 
         tools_list_response = json.loads(lines[1])
         self.assertEqual(2, tools_list_response["id"])
-        self.assertEqual(1, len(tools_list_response["result"]["tools"]))
+        tool_names = [tool["name"] for tool in tools_list_response["result"]["tools"]]
         self.assertEqual(
-            "get_tags_for_series_categories",
-            tools_list_response["result"]["tools"][0]["name"],
+            [
+                "get_tags_for_series_categories",
+                "get_categories",
+                "get_tags_for_series_category",
+            ],
+            tool_names,
         )
 
         tools_call_response = json.loads(lines[2])
@@ -87,6 +109,14 @@ class StdioServerTests(unittest.TestCase):
         self.assertEqual(
             {"tags_by_categories": {"Politics": ["Trump", "Biden"]}},
             tools_call_response["result"]["structuredContent"],
+        )
+
+        tools_call_by_category_response = json.loads(lines[3])
+        self.assertEqual(4, tools_call_by_category_response["id"])
+        self.assertEqual(False, tools_call_by_category_response["result"]["isError"])
+        self.assertEqual(
+            {"category": "Politics", "tags": ["Trump", "Biden"]},
+            tools_call_by_category_response["result"]["structuredContent"],
         )
 
     def test_parse_error(self) -> None:
