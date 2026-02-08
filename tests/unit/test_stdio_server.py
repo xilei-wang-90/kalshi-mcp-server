@@ -18,6 +18,23 @@ class StdioServerTests(unittest.TestCase):
                 "category": arguments["category"],
                 "tags": ["Trump", "Biden"],
             },
+            "get_series_list": lambda arguments: {
+                "series": [
+                    {
+                        "ticker": "KXBTCUSD",
+                        "frequency": "daily",
+                        "title": "Will Bitcoin close above 100k?",
+                        "category": "Crypto",
+                        "tags": ["BTC"],
+                        "settlement_sources": [],
+                        "contract_url": "https://kalshi.com/series/KXBTCUSD",
+                        "contract_terms_url": "https://kalshi.com/terms/KXBTCUSD",
+                        "fee_type": "linear",
+                        "fee_multiplier": 1.0,
+                        "additional_prohibitions": [],
+                    }
+                ]
+            },
         }
         registry = ToolRegistry(handlers)
         stdin = io.StringIO(
@@ -72,6 +89,17 @@ class StdioServerTests(unittest.TestCase):
                             },
                         }
                     ),
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 5,
+                            "method": "tools/call",
+                            "params": {
+                                "name": "get_series_list",
+                                "arguments": {"category": "Crypto"},
+                            },
+                        }
+                    ),
                 ]
             )
             + "\n"
@@ -82,7 +110,7 @@ class StdioServerTests(unittest.TestCase):
         server.run()
 
         lines = [line for line in stdout.getvalue().splitlines() if line.strip()]
-        self.assertEqual(4, len(lines))
+        self.assertEqual(5, len(lines))
 
         initialize_response = json.loads(lines[0])
         self.assertEqual("2.0", initialize_response["jsonrpc"])
@@ -99,6 +127,7 @@ class StdioServerTests(unittest.TestCase):
                 "get_tags_for_series_categories",
                 "get_categories",
                 "get_tags_for_series_category",
+                "get_series_list",
             ],
             tool_names,
         )
@@ -117,6 +146,14 @@ class StdioServerTests(unittest.TestCase):
         self.assertEqual(
             {"category": "Politics", "tags": ["Trump", "Biden"]},
             tools_call_by_category_response["result"]["structuredContent"],
+        )
+
+        tools_call_series_response = json.loads(lines[4])
+        self.assertEqual(5, tools_call_series_response["id"])
+        self.assertEqual(False, tools_call_series_response["result"]["isError"])
+        self.assertEqual(
+            "KXBTCUSD",
+            tools_call_series_response["result"]["structuredContent"]["series"][0]["ticker"],
         )
 
     def test_parse_error(self) -> None:

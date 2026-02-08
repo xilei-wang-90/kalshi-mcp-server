@@ -11,6 +11,7 @@ from .kalshi_client import KalshiClient
 from .mcp.handlers import ToolHandler, build_tool_handlers
 from .mcp.schema import (
     GET_CATEGORIES_TOOL,
+    GET_SERIES_LIST_TOOL,
     GET_TAGS_FOR_SERIES_CATEGORIES_TOOL,
     GET_TAGS_FOR_SERIES_CATEGORY_TOOL,
 )
@@ -30,6 +31,7 @@ class ToolRegistry:
             GET_TAGS_FOR_SERIES_CATEGORIES_TOOL,
             GET_CATEGORIES_TOOL,
             GET_TAGS_FOR_SERIES_CATEGORY_TOOL,
+            GET_SERIES_LIST_TOOL,
         ]
 
     def call_tool(self, tool_name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:

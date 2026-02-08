@@ -55,8 +55,80 @@ class KalshiClientTests(unittest.TestCase):
             "kalshi_mcp.kalshi_client.request.urlopen",
             return_value=_FakeResponse(json.dumps({"foo": "bar"})),
         ):
-            with self.assertRaises(KalshiClientError):
-                client.get_tags_for_series_categories()
+            with self.assertLogs("kalshi_mcp.kalshi_client", level="ERROR"):
+                with self.assertRaises(KalshiClientError):
+                    client.get_tags_for_series_categories()
+
+    def test_get_series_list_success(self) -> None:
+        payload = {
+            "series": [
+                {
+                    "ticker": "KXBTCUSD",
+                    "frequency": "daily",
+                    "title": "Will Bitcoin close above 100k?",
+                    "category": "Crypto",
+                    "tags": ["BTC", "Price"],
+                    "settlement_sources": [
+                        {"name": "Kalshi", "url": "https://kalshi.com/rules"}
+                    ],
+                    "contract_url": "https://kalshi.com/series/KXBTCUSD",
+                    "contract_terms_url": "https://kalshi.com/terms/KXBTCUSD",
+                    "fee_type": "linear",
+                    "fee_multiplier": 1.0,
+                    "additional_prohibitions": [],
+                }
+            ],
+            "cursor": "next-page",
+        }
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps(payload)),
+        ) as mocked_urlopen:
+            result = client.get_series_list(
+                category="Crypto",
+                tags="BTC",
+                include_product_metadata=True,
+                include_volume=True,
+            )
+
+        self.assertEqual(1, len(result.series))
+        first = result.series[0]
+        self.assertEqual("KXBTCUSD", first.ticker)
+        self.assertEqual("Crypto", first.category)
+        self.assertEqual("linear", first.fee_type)
+        self.assertEqual(1.0, first.fee_multiplier)
+        self.assertEqual("next-page", result.cursor)
+
+        request_obj = mocked_urlopen.call_args.args[0]
+        full_url = request_obj.get_full_url()
+        self.assertIn("/series?", full_url)
+        self.assertIn("category=Crypto", full_url)
+        self.assertIn("tags=BTC", full_url)
+        self.assertIn("include_product_metadata=true", full_url)
+        self.assertIn("include_volume=true", full_url)
+
+    def test_get_series_list_missing_payload_key_raises_and_logs(self) -> None:
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps({"foo": "bar"})),
+        ):
+            with self.assertLogs("kalshi_mcp.kalshi_client", level="ERROR") as captured:
+                with self.assertRaises(KalshiClientError):
+                    client.get_series_list()
+
+        self.assertTrue(any("expected list at 'series'" in message for message in captured.output))
 
 
 if __name__ == "__main__":

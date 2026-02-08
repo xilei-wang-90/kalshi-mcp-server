@@ -1,7 +1,7 @@
 """Application-level use cases."""
 
 from .kalshi_client import KalshiClient
-from .models import TagsByCategories
+from .models import SeriesList, TagsByCategories
 
 
 class MetadataService:
@@ -25,3 +25,17 @@ class MetadataService:
             raise ValueError(f"Unknown category: {normalized_category}")
 
         return tags_by_categories[normalized_category]
+
+    def get_series_list(
+        self,
+        category: str | None = None,
+        tags: str | None = None,
+        include_product_metadata: bool = False,
+        include_volume: bool = False,
+    ) -> SeriesList:
+        return self._client.get_series_list(
+            category=category,
+            tags=tags,
+            include_product_metadata=include_product_metadata,
+            include_volume=include_volume,
+        )

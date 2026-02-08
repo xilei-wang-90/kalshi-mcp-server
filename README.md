@@ -14,6 +14,16 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
   - Requires one argument: `category` (exact category name)
   - Returns tags for the selected category
   - No API key required
+- `get_series_list`
+  - Calls Kalshi public endpoint: `GET /series`
+  - Optional arguments:
+    - `category` (string)
+    - `tags` (string)
+    - `include_product_metadata` (boolean)
+    - `include_volume` (boolean)
+  - Returns typed series objects from Kalshi response
+  - Logs warning/error details when response fields have unexpected types/shapes
+  - No API key required
 
 ## Configuration
 - `KALSHI_API_BASE_URL`

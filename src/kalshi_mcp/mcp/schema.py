@@ -45,3 +45,35 @@ GET_TAGS_FOR_SERIES_CATEGORY_TOOL = {
         "additionalProperties": False,
     },
 }
+
+GET_SERIES_LIST_TOOL = {
+    "name": "get_series_list",
+    "description": (
+        "Get Kalshi market series list. "
+        "Uses the public GET /series endpoint."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "category": {
+                "type": "string",
+                "description": "Optional category filter.",
+                "minLength": 1,
+            },
+            "tags": {
+                "type": "string",
+                "description": "Optional tags filter.",
+                "minLength": 1,
+            },
+            "include_product_metadata": {
+                "type": "boolean",
+                "description": "Include product metadata in each series item.",
+            },
+            "include_volume": {
+                "type": "boolean",
+                "description": "Include volume fields in each series item.",
+            },
+        },
+        "additionalProperties": False,
+    },
+}
