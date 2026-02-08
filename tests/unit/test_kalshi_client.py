@@ -130,6 +130,43 @@ class KalshiClientTests(unittest.TestCase):
 
         self.assertTrue(any("expected list at 'series'" in message for message in captured.output))
 
+    def test_get_series_list_allows_null_tags_and_additional_prohibitions(self) -> None:
+        payload = {
+            "series": [
+                {
+                    "ticker": "KXUSDTMIN",
+                    "frequency": "one_off",
+                    "title": "USDT de-peg",
+                    "category": "Crypto",
+                    "tags": None,
+                    "settlement_sources": [
+                        {"name": "CF Benchmarks", "url": "https://www.cfbenchmarks.com/"}
+                    ],
+                    "contract_url": "https://kalshi.com/series/KXUSDTMIN",
+                    "contract_terms_url": "https://kalshi.com/terms/KXUSDTMIN",
+                    "fee_type": "quadratic",
+                    "fee_multiplier": 1,
+                    "additional_prohibitions": None,
+                }
+            ]
+        }
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps(payload)),
+        ):
+            result = client.get_series_list(category="Crypto")
+
+        self.assertEqual(1, len(result.series))
+        first = result.series[0]
+        self.assertIsNone(first.tags)
+        self.assertIsNone(first.additional_prohibitions)
+
 
 if __name__ == "__main__":
     unittest.main()

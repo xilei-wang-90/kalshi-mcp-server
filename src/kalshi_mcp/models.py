@@ -37,13 +37,14 @@ class Series:
     frequency: str
     title: str
     category: str
-    tags: list[str]
+    # Kalshi API sometimes returns `null` for tags/additional_prohibitions.
+    tags: list[str] | None
     settlement_sources: list[SettlementSource]
     contract_url: str
     contract_terms_url: str
     fee_type: str
     fee_multiplier: float
-    additional_prohibitions: list[str]
+    additional_prohibitions: list[str] | None
     product_metadata: dict[str, object] | None = None
     volume: int | None = None
     volume_fp: str | None = None

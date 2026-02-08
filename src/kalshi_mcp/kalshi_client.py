@@ -142,21 +142,26 @@ class KalshiClient:
             return None
 
         raw_tags = raw_series.get("tags")
-        if not isinstance(raw_tags, list):
+        tags: list[str] | None
+        if raw_tags is None:
+            tags = None
+        elif isinstance(raw_tags, list):
+            tags = [tag for tag in raw_tags if isinstance(tag, str)]
+            if len(tags) != len(raw_tags):
+                LOGGER.warning(
+                    "Dropped non-string tag values in series[%s]; before=%s after=%s",
+                    index,
+                    len(raw_tags),
+                    len(tags),
+                )
+        else:
+            # Kalshi occasionally returns null here; treat other unexpected types as absent.
             LOGGER.warning(
-                "Skipping series[%s]: expected 'tags' as string array, got %s",
+                "Unexpected 'tags' type in series[%s]; got %s",
                 index,
                 self._describe_value(raw_tags),
             )
-            return None
-        tags = [tag for tag in raw_tags if isinstance(tag, str)]
-        if len(tags) != len(raw_tags):
-            LOGGER.warning(
-                "Dropped non-string tag values in series[%s]; before=%s after=%s",
-                index,
-                len(raw_tags),
-                len(tags),
-            )
+            tags = None
 
         settlement_sources = self._parse_settlement_sources(
             raw_series.get("settlement_sources"), index
@@ -165,23 +170,27 @@ class KalshiClient:
             return None
 
         raw_additional_prohibitions = raw_series.get("additional_prohibitions")
-        if not isinstance(raw_additional_prohibitions, list):
+        additional_prohibitions: list[str] | None
+        if raw_additional_prohibitions is None:
+            additional_prohibitions = None
+        elif isinstance(raw_additional_prohibitions, list):
+            additional_prohibitions = [
+                value for value in raw_additional_prohibitions if isinstance(value, str)
+            ]
+            if len(additional_prohibitions) != len(raw_additional_prohibitions):
+                LOGGER.warning(
+                    "Dropped non-string additional_prohibitions in series[%s]; before=%s after=%s",
+                    index,
+                    len(raw_additional_prohibitions),
+                    len(additional_prohibitions),
+                )
+        else:
             LOGGER.warning(
-                "Skipping series[%s]: expected 'additional_prohibitions' as string array, got %s",
+                "Unexpected 'additional_prohibitions' type in series[%s]; got %s",
                 index,
                 self._describe_value(raw_additional_prohibitions),
             )
-            return None
-        additional_prohibitions = [
-            value for value in raw_additional_prohibitions if isinstance(value, str)
-        ]
-        if len(additional_prohibitions) != len(raw_additional_prohibitions):
-            LOGGER.warning(
-                "Dropped non-string additional_prohibitions in series[%s]; before=%s after=%s",
-                index,
-                len(raw_additional_prohibitions),
-                len(additional_prohibitions),
-            )
+            additional_prohibitions = None
 
         product_metadata = raw_series.get("product_metadata")
         if product_metadata is not None and not isinstance(product_metadata, dict):
