@@ -36,6 +36,12 @@ class StdioServerTests(unittest.TestCase):
                     }
                 ]
             },
+            "get_series_tickers_for_category": lambda arguments: {
+                "category": arguments["category"],
+                "tickers": ["KXBTCUSD"],
+                "count": 1,
+                "pages": 1,
+            },
         }
         registry = ToolRegistry(handlers)
         resources = ResourceRegistry(registry)
@@ -134,6 +140,17 @@ class StdioServerTests(unittest.TestCase):
                             },
                         }
                     ),
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 6,
+                            "method": "tools/call",
+                            "params": {
+                                "name": "get_series_tickers_for_category",
+                                "arguments": {"category": "Crypto"},
+                            },
+                        }
+                    ),
                 ]
             )
             + "\n"
@@ -144,7 +161,7 @@ class StdioServerTests(unittest.TestCase):
         server.run()
 
         lines = [line for line in stdout.getvalue().splitlines() if line.strip()]
-        self.assertEqual(9, len(lines))
+        self.assertEqual(10, len(lines))
 
         initialize_response = json.loads(lines[0])
         self.assertEqual("2.0", initialize_response["jsonrpc"])
@@ -162,6 +179,7 @@ class StdioServerTests(unittest.TestCase):
                 "get_categories",
                 "get_tags_for_series_category",
                 "get_series_list",
+                "get_series_tickers_for_category",
             ],
             tool_names,
         )
@@ -221,6 +239,14 @@ class StdioServerTests(unittest.TestCase):
         self.assertEqual(
             "KXBTCUSD",
             tools_call_series_response["result"]["structuredContent"]["series"][0]["ticker"],
+        )
+
+        tools_call_tickers_response = json.loads(lines[9])
+        self.assertEqual(6, tools_call_tickers_response["id"])
+        self.assertEqual(False, tools_call_tickers_response["result"]["isError"])
+        self.assertEqual(
+            {"category": "Crypto", "tickers": ["KXBTCUSD"], "count": 1, "pages": 1},
+            tools_call_tickers_response["result"]["structuredContent"],
         )
 
     def test_parse_error(self) -> None:

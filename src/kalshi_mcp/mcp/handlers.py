@@ -24,6 +24,9 @@ def build_tool_handlers(metadata_service: MetadataService) -> dict[str, ToolHand
         "get_series_list": lambda arguments: (
             handle_get_series_list(metadata_service, arguments)
         ),
+        "get_series_tickers_for_category": lambda arguments: (
+            handle_get_series_tickers_for_category(metadata_service, arguments)
+        ),
     }
 
 
@@ -127,6 +130,96 @@ def handle_get_series_list(
         include_volume=include_volume,
     )
     return _serialize_series_list(series_list)
+
+
+def handle_get_series_tickers_for_category(
+    metadata_service: MetadataService, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    if arguments is None:
+        raise ValueError("Missing arguments for get_series_tickers_for_category.")
+
+    raw_category = arguments.get("category")
+    if not isinstance(raw_category, str):
+        raise ValueError("category must be a string.")
+    category = raw_category.strip()
+    if not category:
+        raise ValueError("category must be a non-empty string.")
+
+    tags: str | None = None
+    raw_tags = arguments.get("tags")
+    if raw_tags is not None:
+        if not isinstance(raw_tags, str):
+            raise ValueError("tags must be a string.")
+        tags = raw_tags.strip()
+        if not tags:
+            raise ValueError("tags must be a non-empty string.")
+
+    # Default to max Kalshi page size to minimize API round-trips.
+    limit = 1000
+    raw_limit = arguments.get("limit")
+    if raw_limit is not None:
+        if isinstance(raw_limit, bool) or not isinstance(raw_limit, int):
+            raise ValueError("limit must be an integer.")
+        if raw_limit < 1 or raw_limit > 1000:
+            raise ValueError("limit must be between 1 and 1000.")
+        limit = raw_limit
+
+    max_pages = 1000
+    raw_max_pages = arguments.get("max_pages")
+    if raw_max_pages is not None:
+        if isinstance(raw_max_pages, bool) or not isinstance(raw_max_pages, int):
+            raise ValueError("max_pages must be an integer.")
+        if raw_max_pages < 1 or raw_max_pages > 10000:
+            raise ValueError("max_pages must be between 1 and 10000.")
+        max_pages = raw_max_pages
+
+    tickers: list[str] = []
+    seen_tickers: set[str] = set()
+    cursor: str | None = None
+    seen_cursors: set[str] = set()
+    pages = 0
+
+    while True:
+        if pages >= max_pages:
+            raise ValueError(
+                "Exceeded max_pages while paging /series; "
+                "reduce scope with tags or increase max_pages."
+            )
+
+        series_list = metadata_service.get_series_list(
+            category=category,
+            tags=tags,
+            cursor=cursor,
+            limit=limit,
+            include_product_metadata=False,
+            include_volume=False,
+        )
+
+        for series in series_list.series:
+            if series.ticker not in seen_tickers:
+                seen_tickers.add(series.ticker)
+                tickers.append(series.ticker)
+
+        pages += 1
+        next_cursor = series_list.cursor
+        if next_cursor is None:
+            break
+
+        # Protect against a buggy/looping cursor.
+        if next_cursor in seen_cursors:
+            raise ValueError("Kalshi /series cursor repeated; aborting pagination.")
+        seen_cursors.add(next_cursor)
+        cursor = next_cursor
+
+    payload: dict[str, Any] = {
+        "category": category,
+        "tickers": tickers,
+        "count": len(tickers),
+        "pages": pages,
+    }
+    if tags is not None:
+        payload["tags"] = tags
+    return payload
 
 
 def _serialize_series_list(series_list: SeriesList) -> dict[str, Any]:

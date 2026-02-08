@@ -88,3 +88,43 @@ GET_SERIES_LIST_TOOL = {
         "additionalProperties": False,
     },
 }
+
+GET_SERIES_TICKERS_FOR_CATEGORY_TOOL = {
+    "name": "get_series_tickers_for_category",
+    "description": (
+        "Get all Kalshi series tickers for a particular category. "
+        "Internally pages through the public GET /series endpoint and extracts `ticker`."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "category": {
+                "type": "string",
+                "description": "Exact Kalshi series category name.",
+                "minLength": 1,
+            },
+            "tags": {
+                "type": "string",
+                "description": "Optional tags filter (same meaning as /series?tags=...).",
+                "minLength": 1,
+            },
+            "limit": {
+                "type": "integer",
+                "description": "Optional page size for each /series request (1-1000). Defaults to 1000.",
+                "minimum": 1,
+                "maximum": 1000,
+            },
+            "max_pages": {
+                "type": "integer",
+                "description": (
+                    "Safety cap on number of pages to fetch. Defaults to 1000. "
+                    "Set lower to bound response size/time."
+                ),
+                "minimum": 1,
+                "maximum": 10000,
+            },
+        },
+        "required": ["category"],
+        "additionalProperties": False,
+    },
+}

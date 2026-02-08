@@ -13,6 +13,7 @@ from .mcp.resources import ResourceRegistry
 from .mcp.schema import (
     GET_CATEGORIES_TOOL,
     GET_SERIES_LIST_TOOL,
+    GET_SERIES_TICKERS_FOR_CATEGORY_TOOL,
     GET_TAGS_FOR_SERIES_CATEGORIES_TOOL,
     GET_TAGS_FOR_SERIES_CATEGORY_TOOL,
 )
@@ -33,6 +34,7 @@ class ToolRegistry:
             GET_CATEGORIES_TOOL,
             GET_TAGS_FOR_SERIES_CATEGORY_TOOL,
             GET_SERIES_LIST_TOOL,
+            GET_SERIES_TICKERS_FOR_CATEGORY_TOOL,
         ]
 
     def call_tool(self, tool_name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:

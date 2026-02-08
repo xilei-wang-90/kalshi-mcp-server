@@ -26,6 +26,16 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
   - Returns typed series objects from Kalshi response
   - Logs warning/error details when response fields have unexpected types/shapes
   - No API key required
+- `get_series_tickers_for_category`
+  - Pages Kalshi public endpoint: `GET /series`
+  - Required arguments:
+    - `category` (string)
+  - Optional arguments:
+    - `tags` (string)
+    - `limit` (int, 1-1000; defaults to 1000)
+    - `max_pages` (int, 1-10000; defaults to 1000)
+  - Returns only `ticker` values across all pages
+  - No API key required
 
 ## Configuration
 - `KALSHI_API_BASE_URL`
@@ -34,7 +44,17 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
   - Default: `10`
 
 ## Run as MCP stdio server
-- Command:
+- Command (installed/editable):
+  - `python3 -m pip install -e .`
+  - `python3 -m kalshi_mcp.server`
+- Command (no install):
   - `PYTHONPATH=src python3 -m kalshi_mcp.server`
 - Transport:
   - JSON-RPC 2.0 over newline-delimited JSON on stdin/stdout
+
+## Development
+- Run unit tests (unittest):
+  - `python3 -m unittest discover -s tests -p 'test_*.py'`
+- Run unit tests (pytest):
+  - Install dev deps: `python3 -m pip install -r requirements-dev.txt`
+  - Then: `python3 -m pytest -q`

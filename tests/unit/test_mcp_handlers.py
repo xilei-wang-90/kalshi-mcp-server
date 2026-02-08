@@ -2,6 +2,7 @@ import unittest
 
 from kalshi_mcp.mcp.handlers import (
     handle_get_series_list,
+    handle_get_series_tickers_for_category,
     handle_get_categories,
     handle_get_tags_for_series_categories,
     handle_get_tags_for_series_category,
@@ -62,6 +63,53 @@ class _FakeMetadataService:
                 ],
                 cursor="next-page",
             )
+        if category == "Crypto" and tags is None:
+            if cursor is None:
+                return SeriesList(
+                    series=[
+                        Series(
+                            ticker="KXBTCUSD",
+                            frequency="daily",
+                            title="Will Bitcoin close above 100k?",
+                            category="Crypto",
+                            tags=["BTC"],
+                            settlement_sources=[
+                                SettlementSource(
+                                    name="Kalshi Rules", url="https://kalshi.com/rules"
+                                )
+                            ],
+                            contract_url="https://kalshi.com/series/KXBTCUSD",
+                            contract_terms_url="https://kalshi.com/terms/KXBTCUSD",
+                            fee_type="linear",
+                            fee_multiplier=1.0,
+                            additional_prohibitions=[],
+                        )
+                    ],
+                    cursor="page-2",
+                )
+            if cursor == "page-2":
+                return SeriesList(
+                    series=[
+                        Series(
+                            ticker="KXETHUSD",
+                            frequency="daily",
+                            title="Will Ethereum close above 10k?",
+                            category="Crypto",
+                            tags=["ETH"],
+                            settlement_sources=[
+                                SettlementSource(
+                                    name="Kalshi Rules", url="https://kalshi.com/rules"
+                                )
+                            ],
+                            contract_url="https://kalshi.com/series/KXETHUSD",
+                            contract_terms_url="https://kalshi.com/terms/KXETHUSD",
+                            fee_type="linear",
+                            fee_multiplier=1.0,
+                            additional_prohibitions=[],
+                        )
+                    ],
+                    cursor=None,
+                )
         return SeriesList(series=[], cursor=None)
 
 
@@ -120,6 +168,29 @@ class HandlersTests(unittest.TestCase):
     def test_get_series_list_rejects_invalid_limit(self) -> None:
         with self.assertRaises(ValueError):
             handle_get_series_list(_FakeMetadataService(), {"limit": 0})
+
+    def test_get_series_tickers_for_category_handler(self) -> None:
+        result = handle_get_series_tickers_for_category(
+            _FakeMetadataService(),
+            {"category": "Crypto"},
+        )
+        self.assertEqual(
+            {
+                "category": "Crypto",
+                "tickers": ["KXBTCUSD", "KXETHUSD"],
+                "count": 2,
+                "pages": 2,
+            },
+            result,
+        )
+
+    def test_get_series_tickers_for_category_requires_arguments(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_series_tickers_for_category(_FakeMetadataService(), None)
+
+    def test_get_series_tickers_for_category_requires_string_category(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_series_tickers_for_category(_FakeMetadataService(), {"category": 123})
 
 
 if __name__ == "__main__":
