@@ -3,10 +3,11 @@ import json
 import unittest
 
 from kalshi_mcp.server import StdioMCPServer, ToolRegistry
+from kalshi_mcp.mcp.resources import ResourceRegistry
 
 
 class StdioServerTests(unittest.TestCase):
-    def test_initialize_tools_list_and_tools_call(self) -> None:
+    def test_initialize_tools_list_tools_call_and_resources(self) -> None:
         handlers = {
             "get_tags_for_series_categories": lambda arguments: {
                 "tags_by_categories": {"Politics": ["Trump", "Biden"]}
@@ -37,6 +38,7 @@ class StdioServerTests(unittest.TestCase):
             },
         }
         registry = ToolRegistry(handlers)
+        resources = ResourceRegistry(registry)
         stdin = io.StringIO(
             "\n".join(
                 [
@@ -65,6 +67,38 @@ class StdioServerTests(unittest.TestCase):
                             "id": 2,
                             "method": "tools/list",
                             "params": {},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 20,
+                            "method": "resources/list",
+                            "params": {},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 21,
+                            "method": "resources/templates/list",
+                            "params": {},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 22,
+                            "method": "resources/read",
+                            "params": {"uri": "kalshi:///categories"},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
+                            "id": 23,
+                            "method": "resources/read",
+                            "params": {"uri": "kalshi:///category/Politics/tags"},
                         }
                     ),
                     json.dumps(
@@ -106,11 +140,11 @@ class StdioServerTests(unittest.TestCase):
         )
         stdout = io.StringIO()
 
-        server = StdioMCPServer(registry, stdin=stdin, stdout=stdout)
+        server = StdioMCPServer(registry, resources=resources, stdin=stdin, stdout=stdout)
         server.run()
 
         lines = [line for line in stdout.getvalue().splitlines() if line.strip()]
-        self.assertEqual(5, len(lines))
+        self.assertEqual(9, len(lines))
 
         initialize_response = json.loads(lines[0])
         self.assertEqual("2.0", initialize_response["jsonrpc"])
@@ -132,7 +166,40 @@ class StdioServerTests(unittest.TestCase):
             tool_names,
         )
 
-        tools_call_response = json.loads(lines[2])
+        resources_list_response = json.loads(lines[2])
+        self.assertEqual(20, resources_list_response["id"])
+        resource_uris = [r["uri"] for r in resources_list_response["result"]["resources"]]
+        self.assertEqual(
+            ["kalshi:///categories", "kalshi:///tags_by_categories"],
+            resource_uris,
+        )
+
+        templates_list_response = json.loads(lines[3])
+        self.assertEqual(21, templates_list_response["id"])
+        template_uris = [
+            t["uriTemplate"] for t in templates_list_response["result"]["resourceTemplates"]
+        ]
+        self.assertEqual(
+            [
+                "kalshi:///category/{category}/tags",
+                "kalshi:///series{?category,tags,cursor,limit,include_product_metadata,include_volume}",
+            ],
+            template_uris,
+        )
+
+        categories_read_response = json.loads(lines[4])
+        self.assertEqual(22, categories_read_response["id"])
+        categories_contents = categories_read_response["result"]["contents"][0]["text"]
+        self.assertIn('"categories"', categories_contents)
+        self.assertIn("Politics", categories_contents)
+
+        category_tags_read_response = json.loads(lines[5])
+        self.assertEqual(23, category_tags_read_response["id"])
+        category_tags_contents = category_tags_read_response["result"]["contents"][0]["text"]
+        self.assertIn('"category"', category_tags_contents)
+        self.assertIn("Politics", category_tags_contents)
+
+        tools_call_response = json.loads(lines[6])
         self.assertEqual(3, tools_call_response["id"])
         self.assertEqual(False, tools_call_response["result"]["isError"])
         self.assertEqual(
@@ -140,7 +207,7 @@ class StdioServerTests(unittest.TestCase):
             tools_call_response["result"]["structuredContent"],
         )
 
-        tools_call_by_category_response = json.loads(lines[3])
+        tools_call_by_category_response = json.loads(lines[7])
         self.assertEqual(4, tools_call_by_category_response["id"])
         self.assertEqual(False, tools_call_by_category_response["result"]["isError"])
         self.assertEqual(
@@ -148,7 +215,7 @@ class StdioServerTests(unittest.TestCase):
             tools_call_by_category_response["result"]["structuredContent"],
         )
 
-        tools_call_series_response = json.loads(lines[4])
+        tools_call_series_response = json.loads(lines[8])
         self.assertEqual(5, tools_call_series_response["id"])
         self.assertEqual(False, tools_call_series_response["result"]["isError"])
         self.assertEqual(

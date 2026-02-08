@@ -30,11 +30,15 @@ class _FakeMetadataService:
         self,
         category: str | None = None,
         tags: str | None = None,
+        cursor: str | None = None,
+        limit: int | None = None,
         include_product_metadata: bool = False,
         include_volume: bool = False,
     ) -> SeriesList:
         _ = include_product_metadata
         _ = include_volume
+        _ = cursor
+        _ = limit
         if category == "Crypto" and tags == "BTC":
             return SeriesList(
                 series=[
@@ -112,6 +116,10 @@ class HandlersTests(unittest.TestCase):
     def test_get_series_list_rejects_invalid_types(self) -> None:
         with self.assertRaises(ValueError):
             handle_get_series_list(_FakeMetadataService(), {"include_volume": "yes"})
+
+    def test_get_series_list_rejects_invalid_limit(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_series_list(_FakeMetadataService(), {"limit": 0})
 
 
 if __name__ == "__main__":

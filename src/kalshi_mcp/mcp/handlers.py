@@ -70,6 +70,8 @@ def handle_get_series_list(
 ) -> dict[str, Any]:
     category: str | None = None
     tags: str | None = None
+    cursor: str | None = None
+    limit: int | None = None
     include_product_metadata = False
     include_volume = False
 
@@ -90,6 +92,22 @@ def handle_get_series_list(
             if not tags:
                 raise ValueError("tags must be a non-empty string.")
 
+        raw_cursor = arguments.get("cursor")
+        if raw_cursor is not None:
+            if not isinstance(raw_cursor, str):
+                raise ValueError("cursor must be a string.")
+            cursor = raw_cursor.strip()
+            if not cursor:
+                raise ValueError("cursor must be a non-empty string.")
+
+        raw_limit = arguments.get("limit")
+        if raw_limit is not None:
+            if isinstance(raw_limit, bool) or not isinstance(raw_limit, int):
+                raise ValueError("limit must be an integer.")
+            if raw_limit < 1 or raw_limit > 1000:
+                raise ValueError("limit must be between 1 and 1000.")
+            limit = raw_limit
+
         raw_include_product_metadata = arguments.get("include_product_metadata", False)
         if not isinstance(raw_include_product_metadata, bool):
             raise ValueError("include_product_metadata must be a boolean.")
@@ -103,6 +121,8 @@ def handle_get_series_list(
     series_list = metadata_service.get_series_list(
         category=category,
         tags=tags,
+        cursor=cursor,
+        limit=limit,
         include_product_metadata=include_product_metadata,
         include_volume=include_volume,
     )

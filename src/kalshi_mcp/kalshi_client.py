@@ -49,6 +49,8 @@ class KalshiClient:
         self,
         category: str | None = None,
         tags: str | None = None,
+        cursor: str | None = None,
+        limit: int | None = None,
         include_product_metadata: bool = False,
         include_volume: bool = False,
     ) -> SeriesList:
@@ -58,6 +60,10 @@ class KalshiClient:
             params["category"] = category
         if tags is not None:
             params["tags"] = tags
+        if cursor is not None:
+            params["cursor"] = cursor
+        if limit is not None:
+            params["limit"] = str(limit)
         if include_product_metadata:
             params["include_product_metadata"] = "true"
         if include_volume:

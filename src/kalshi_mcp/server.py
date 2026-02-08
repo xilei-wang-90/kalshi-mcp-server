@@ -9,6 +9,7 @@ from typing import TextIO
 
 from .kalshi_client import KalshiClient
 from .mcp.handlers import ToolHandler, build_tool_handlers
+from .mcp.resources import ResourceRegistry
 from .mcp.schema import (
     GET_CATEGORIES_TOOL,
     GET_SERIES_LIST_TOOL,
@@ -53,10 +54,12 @@ class StdioMCPServer:
     def __init__(
         self,
         registry: ToolRegistry,
+        resources: ResourceRegistry | None = None,
         stdin: TextIO | None = None,
         stdout: TextIO | None = None,
     ) -> None:
         self._registry = registry
+        self._resources = resources
         self._stdin = stdin or sys.stdin
         self._stdout = stdout or sys.stdout
         self._initialized = False
@@ -145,6 +148,47 @@ class StdioMCPServer:
                 result = self._call_tool(params)
                 return self._result_response(request_id, result)
 
+            if method == "resources/list":
+                if self._resources is None:
+                    return self._error_response(request_id, -32601, "Method not found")
+                if not self._initialized:
+                    return self._error_response(
+                        request_id,
+                        -32603,
+                        "Server is not initialized. Send initialize and notifications/initialized first.",
+                    )
+                result = {"resources": self._resources.list_resources()}
+                return self._result_response(request_id, result)
+
+            if method == "resources/read":
+                if self._resources is None:
+                    return self._error_response(request_id, -32601, "Method not found")
+                if not self._initialized:
+                    return self._error_response(
+                        request_id,
+                        -32603,
+                        "Server is not initialized. Send initialize and notifications/initialized first.",
+                    )
+                if not isinstance(params, dict):
+                    raise ValueError("Invalid params for resources/read")
+                uri = params.get("uri")
+                if not isinstance(uri, str) or not uri:
+                    raise ValueError("Missing resource uri")
+                result = self._resources.read_resource(uri)
+                return self._result_response(request_id, result)
+
+            if method == "resources/templates/list":
+                if self._resources is None:
+                    return self._error_response(request_id, -32601, "Method not found")
+                if not self._initialized:
+                    return self._error_response(
+                        request_id,
+                        -32603,
+                        "Server is not initialized. Send initialize and notifications/initialized first.",
+                    )
+                result = {"resourceTemplates": self._resources.list_resource_templates()}
+                return self._result_response(request_id, result)
+
             return self._error_response(request_id, -32601, "Method not found")
         except ValueError as exc:
             return self._error_response(request_id, -32602, str(exc))
@@ -159,9 +203,13 @@ class StdioMCPServer:
         if not isinstance(protocol_version, str) or not protocol_version:
             protocol_version = DEFAULT_PROTOCOL_VERSION
 
+        capabilities: dict[str, Any] = {"tools": {"listChanged": False}}
+        if self._resources is not None:
+            capabilities["resources"] = {"subscribe": False, "listChanged": False}
+
         return {
             "protocolVersion": protocol_version,
-            "capabilities": {"tools": {"listChanged": False}},
+            "capabilities": capabilities,
             "serverInfo": {"name": "kalshi-mcp-server", "version": "0.1.0"},
         }
 
@@ -227,7 +275,8 @@ class StdioMCPServer:
 def main() -> int:
     """Main entrypoint for running the MCP server."""
     registry = create_tool_registry()
-    server = StdioMCPServer(registry)
+    resources = ResourceRegistry(registry)
+    server = StdioMCPServer(registry, resources=resources)
     return server.run()
 
 

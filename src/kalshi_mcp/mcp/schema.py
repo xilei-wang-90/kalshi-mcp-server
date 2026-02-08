@@ -65,6 +65,17 @@ GET_SERIES_LIST_TOOL = {
                 "description": "Optional tags filter.",
                 "minLength": 1,
             },
+            "cursor": {
+                "type": "string",
+                "description": "Optional pagination cursor.",
+                "minLength": 1,
+            },
+            "limit": {
+                "type": "integer",
+                "description": "Optional page size (1-1000).",
+                "minimum": 1,
+                "maximum": 1000,
+            },
             "include_product_metadata": {
                 "type": "boolean",
                 "description": "Include product metadata in each series item.",

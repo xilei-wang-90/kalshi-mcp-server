@@ -30,12 +30,16 @@ class MetadataService:
         self,
         category: str | None = None,
         tags: str | None = None,
+        cursor: str | None = None,
+        limit: int | None = None,
         include_product_metadata: bool = False,
         include_volume: bool = False,
     ) -> SeriesList:
         return self._client.get_series_list(
             category=category,
             tags=tags,
+            cursor=cursor,
+            limit=limit,
             include_product_metadata=include_product_metadata,
             include_volume=include_volume,
         )

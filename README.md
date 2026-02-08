@@ -19,6 +19,8 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
   - Optional arguments:
     - `category` (string)
     - `tags` (string)
+    - `cursor` (string)
+    - `limit` (int, 1-1000)
     - `include_product_metadata` (boolean)
     - `include_volume` (boolean)
   - Returns typed series objects from Kalshi response
