@@ -110,6 +110,14 @@ class StdioServerTests(unittest.TestCase):
                     json.dumps(
                         {
                             "jsonrpc": "2.0",
+                            "id": 24,
+                            "method": "resources/read",
+                            "params": {"uri": "kalshi:///category/Crypto/series_tickers"},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
                             "id": 3,
                             "method": "tools/call",
                             "params": {
@@ -161,7 +169,7 @@ class StdioServerTests(unittest.TestCase):
         server.run()
 
         lines = [line for line in stdout.getvalue().splitlines() if line.strip()]
-        self.assertEqual(10, len(lines))
+        self.assertEqual(11, len(lines))
 
         initialize_response = json.loads(lines[0])
         self.assertEqual("2.0", initialize_response["jsonrpc"])
@@ -200,6 +208,7 @@ class StdioServerTests(unittest.TestCase):
         self.assertEqual(
             [
                 "kalshi:///category/{category}/tags",
+                "kalshi:///category/{category}/series_tickers{?tags,limit,max_pages}",
                 "kalshi:///series{?category,tags,cursor,limit,include_product_metadata,include_volume}",
             ],
             template_uris,
@@ -217,7 +226,13 @@ class StdioServerTests(unittest.TestCase):
         self.assertIn('"category"', category_tags_contents)
         self.assertIn("Politics", category_tags_contents)
 
-        tools_call_response = json.loads(lines[6])
+        category_tickers_read_response = json.loads(lines[6])
+        self.assertEqual(24, category_tickers_read_response["id"])
+        category_tickers_contents = category_tickers_read_response["result"]["contents"][0]["text"]
+        self.assertIn('"tickers"', category_tickers_contents)
+        self.assertIn("KXBTCUSD", category_tickers_contents)
+
+        tools_call_response = json.loads(lines[7])
         self.assertEqual(3, tools_call_response["id"])
         self.assertEqual(False, tools_call_response["result"]["isError"])
         self.assertEqual(
@@ -225,7 +240,7 @@ class StdioServerTests(unittest.TestCase):
             tools_call_response["result"]["structuredContent"],
         )
 
-        tools_call_by_category_response = json.loads(lines[7])
+        tools_call_by_category_response = json.loads(lines[8])
         self.assertEqual(4, tools_call_by_category_response["id"])
         self.assertEqual(False, tools_call_by_category_response["result"]["isError"])
         self.assertEqual(
@@ -233,7 +248,7 @@ class StdioServerTests(unittest.TestCase):
             tools_call_by_category_response["result"]["structuredContent"],
         )
 
-        tools_call_series_response = json.loads(lines[8])
+        tools_call_series_response = json.loads(lines[9])
         self.assertEqual(5, tools_call_series_response["id"])
         self.assertEqual(False, tools_call_series_response["result"]["isError"])
         self.assertEqual(
@@ -241,7 +256,7 @@ class StdioServerTests(unittest.TestCase):
             tools_call_series_response["result"]["structuredContent"]["series"][0]["ticker"],
         )
 
-        tools_call_tickers_response = json.loads(lines[9])
+        tools_call_tickers_response = json.loads(lines[10])
         self.assertEqual(6, tools_call_tickers_response["id"])
         self.assertEqual(False, tools_call_tickers_response["result"]["isError"])
         self.assertEqual(

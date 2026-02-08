@@ -72,6 +72,11 @@ class ResourceRegistry:
                 description="Tags for a single series category.",
             ),
             ResourceTemplateDescriptor(
+                uriTemplate="kalshi:///category/{category}/series_tickers{?tags,limit,max_pages}",
+                name="Kalshi Series Tickers For Category",
+                description="All series tickers for a single category (paged from /series).",
+            ),
+            ResourceTemplateDescriptor(
                 uriTemplate=(
                     "kalshi:///series{?category,tags,cursor,limit,include_product_metadata,include_volume}"
                 ),
@@ -117,6 +122,22 @@ class ResourceRegistry:
             return self._tool_registry.call_tool(
                 "get_tags_for_series_category", {"category": category}
             )
+
+        if path.startswith("/category/") and path.endswith("/series_tickers"):
+            # /category/{category}/series_tickers
+            parts = [p for p in path.split("/") if p]
+            if len(parts) != 3 or parts[0] != "category" or parts[2] != "series_tickers":
+                raise ValueError("Invalid category series tickers resource uri")
+            category = parse.unquote(parts[1])
+            args: dict[str, Any] = {"category": category}
+            q = parse.parse_qs(query, keep_blank_values=False)
+            if "tags" in q and q["tags"]:
+                args["tags"] = q["tags"][0]
+            if "limit" in q and q["limit"]:
+                args["limit"] = _parse_int(q["limit"][0])
+            if "max_pages" in q and q["max_pages"]:
+                args["max_pages"] = _parse_int(q["max_pages"][0])
+            return self._tool_registry.call_tool("get_series_tickers_for_category", args)
 
         if path == "/series":
             args: dict[str, Any] = {}
