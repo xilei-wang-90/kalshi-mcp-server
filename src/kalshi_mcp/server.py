@@ -12,6 +12,7 @@ from .mcp.handlers import ToolHandler, build_tool_handlers
 from .mcp.resources import ResourceRegistry
 from .mcp.schema import (
     GET_CATEGORIES_TOOL,
+    GET_MARKETS_TOOL,
     GET_SERIES_LIST_TOOL,
     GET_SERIES_TICKERS_FOR_CATEGORY_TOOL,
     GET_TAGS_FOR_SERIES_CATEGORIES_TOOL,
@@ -34,6 +35,7 @@ class ToolRegistry:
             GET_CATEGORIES_TOOL,
             GET_TAGS_FOR_SERIES_CATEGORY_TOOL,
             GET_SERIES_LIST_TOOL,
+            GET_MARKETS_TOOL,
             GET_SERIES_TICKERS_FOR_CATEGORY_TOOL,
         ]
 

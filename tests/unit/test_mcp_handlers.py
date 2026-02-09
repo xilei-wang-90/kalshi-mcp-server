@@ -6,8 +6,9 @@ from kalshi_mcp.mcp.handlers import (
     handle_get_categories,
     handle_get_tags_for_series_categories,
     handle_get_tags_for_series_category,
+    handle_get_markets,
 )
-from kalshi_mcp.models import Series, SeriesList, SettlementSource, TagsByCategories
+from kalshi_mcp.models import Market, MarketsList, Series, SeriesList, SettlementSource, TagsByCategories
 
 
 class _FakeMetadataService:
@@ -112,6 +113,55 @@ class _FakeMetadataService:
                 )
         return SeriesList(series=[], cursor=None)
 
+    def get_markets(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int | None = None,
+        event_ticker: str | None = None,
+        series_ticker: str | None = None,
+        tickers: str | None = None,
+        status: str | None = None,
+        mve_filter: str | None = None,
+        min_created_ts: int | None = None,
+        max_created_ts: int | None = None,
+        min_updated_ts: int | None = None,
+        min_close_ts: int | None = None,
+        max_close_ts: int | None = None,
+        min_settled_ts: int | None = None,
+        max_settled_ts: int | None = None,
+    ) -> MarketsList:
+        _ = (
+            cursor,
+            limit,
+            event_ticker,
+            series_ticker,
+            tickers,
+            status,
+            mve_filter,
+            min_created_ts,
+            max_created_ts,
+            min_updated_ts,
+            min_close_ts,
+            max_close_ts,
+            min_settled_ts,
+            max_settled_ts,
+        )
+        return MarketsList(
+            markets=[
+                Market(
+                    ticker="TRUMPWIN-26NOV-T2",
+                    event_ticker="TRUMPWIN-26NOV",
+                    market_type="binary",
+                    title="Will Trump win the 2024 election?",
+                    subtitle="Trump Wins",
+                    status="initialized",
+                    tick_size=1,
+                )
+            ],
+            cursor="next-page",
+        )
+
 
 class HandlersTests(unittest.TestCase):
     def test_get_tags_for_series_categories_handler(self) -> None:
@@ -191,6 +241,21 @@ class HandlersTests(unittest.TestCase):
     def test_get_series_tickers_for_category_requires_string_category(self) -> None:
         with self.assertRaises(ValueError):
             handle_get_series_tickers_for_category(_FakeMetadataService(), {"category": 123})
+
+    def test_get_markets_handler(self) -> None:
+        result = handle_get_markets(_FakeMetadataService(), {"limit": 1, "status": "open"})
+        self.assertEqual(1, len(result["markets"]))
+        self.assertEqual("TRUMPWIN-26NOV-T2", result["markets"][0]["ticker"])
+        self.assertEqual("initialized", result["markets"][0]["status"])
+        self.assertEqual("next-page", result["cursor"])
+
+    def test_get_markets_rejects_invalid_limit(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_markets(_FakeMetadataService(), {"limit": 0})
+
+    def test_get_markets_rejects_invalid_mve_filter(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_markets(_FakeMetadataService(), {"mve_filter": "maybe"})
 
 
 if __name__ == "__main__":

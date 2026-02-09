@@ -167,6 +167,86 @@ class KalshiClientTests(unittest.TestCase):
         self.assertIsNone(first.tags)
         self.assertIsNone(first.additional_prohibitions)
 
+    def test_get_markets_success(self) -> None:
+        payload = {
+            "markets": [
+                {
+                    "ticker": "TRUMPWIN-26NOV-T2",
+                    "event_ticker": "TRUMPWIN-26NOV",
+                    "market_type": "binary",
+                    "title": "Will Trump win the 2024 election?",
+                    "subtitle": "Trump Wins",
+                    "status": "initialized",
+                    "tick_size": 1,
+                    "price_ranges": [{"start": "0", "end": "0.2", "step": "0.01"}],
+                    "mve_selected_legs": [
+                        {
+                            "event_ticker": "TRUMPWIN-26NOV",
+                            "market_ticker": "TRUMPWIN-26NOV-T2",
+                            "side": "yes",
+                            "yes_settlement_value_dollars": "0",
+                        }
+                    ],
+                    "custom_strike": {},
+                }
+            ],
+            "cursor": "next-page",
+        }
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps(payload)),
+        ) as mocked_urlopen:
+            result = client.get_markets(
+                limit=5,
+                status="open",
+                event_ticker="TRUMPWIN-26NOV",
+                min_close_ts=1700000000,
+            )
+
+        self.assertEqual(1, len(result.markets))
+        first = result.markets[0]
+        self.assertEqual("TRUMPWIN-26NOV-T2", first.ticker)
+        self.assertEqual("TRUMPWIN-26NOV", first.event_ticker)
+        self.assertEqual("binary", first.market_type)
+        self.assertEqual("initialized", first.status)
+        self.assertEqual(1, first.tick_size)
+        self.assertEqual("next-page", result.cursor)
+        self.assertIsNotNone(first.price_ranges)
+        self.assertEqual("0.01", first.price_ranges[0].step)
+        self.assertIsNotNone(first.mve_selected_legs)
+        self.assertEqual("yes", first.mve_selected_legs[0].side)
+
+        request_obj = mocked_urlopen.call_args.args[0]
+        full_url = request_obj.get_full_url()
+        self.assertIn("/markets?", full_url)
+        self.assertIn("limit=5", full_url)
+        self.assertIn("status=open", full_url)
+        self.assertIn("event_ticker=TRUMPWIN-26NOV", full_url)
+        self.assertIn("min_close_ts=1700000000", full_url)
+
+    def test_get_markets_missing_payload_key_raises_and_logs(self) -> None:
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps({"foo": "bar"})),
+        ):
+            with self.assertLogs("kalshi_mcp.kalshi_client", level="ERROR") as captured:
+                with self.assertRaises(KalshiClientError):
+                    client.get_markets()
+
+        self.assertTrue(any("expected list at 'markets'" in message for message in captured.output))
+
 
 if __name__ == "__main__":
     unittest.main()

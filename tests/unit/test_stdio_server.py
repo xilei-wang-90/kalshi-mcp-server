@@ -187,6 +187,7 @@ class StdioServerTests(unittest.TestCase):
                 "get_categories",
                 "get_tags_for_series_category",
                 "get_series_list",
+                "get_markets",
                 "get_series_tickers_for_category",
             ],
             tool_names,

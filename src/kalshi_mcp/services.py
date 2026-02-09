@@ -1,7 +1,7 @@
 """Application-level use cases."""
 
 from .kalshi_client import KalshiClient
-from .models import SeriesList, TagsByCategories
+from .models import MarketsList, SeriesList, TagsByCategories
 
 
 class MetadataService:
@@ -42,4 +42,39 @@ class MetadataService:
             limit=limit,
             include_product_metadata=include_product_metadata,
             include_volume=include_volume,
+        )
+
+    def get_markets(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int | None = None,
+        event_ticker: str | None = None,
+        series_ticker: str | None = None,
+        tickers: str | None = None,
+        status: str | None = None,
+        mve_filter: str | None = None,
+        min_created_ts: int | None = None,
+        max_created_ts: int | None = None,
+        min_updated_ts: int | None = None,
+        min_close_ts: int | None = None,
+        max_close_ts: int | None = None,
+        min_settled_ts: int | None = None,
+        max_settled_ts: int | None = None,
+    ) -> MarketsList:
+        return self._client.get_markets(
+            cursor=cursor,
+            limit=limit,
+            event_ticker=event_ticker,
+            series_ticker=series_ticker,
+            tickers=tickers,
+            status=status,
+            mve_filter=mve_filter,
+            min_created_ts=min_created_ts,
+            max_created_ts=max_created_ts,
+            min_updated_ts=min_updated_ts,
+            min_close_ts=min_close_ts,
+            max_close_ts=max_close_ts,
+            min_settled_ts=min_settled_ts,
+            max_settled_ts=max_settled_ts,
         )

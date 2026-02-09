@@ -4,7 +4,16 @@ from __future__ import annotations
 
 from typing import Any, Callable
 
-from ..models import Series, SeriesList, SettlementSource, TagsByCategories
+from ..models import (
+    Market,
+    MarketsList,
+    MveSelectedLeg,
+    PriceRange,
+    Series,
+    SeriesList,
+    SettlementSource,
+    TagsByCategories,
+)
 from ..services import MetadataService
 
 ToolHandler = Callable[[dict[str, Any] | None], dict[str, Any]]
@@ -89,6 +98,9 @@ def build_tool_handlers(metadata_service: MetadataService) -> dict[str, ToolHand
         ),
         "get_series_list": lambda arguments: (
             handle_get_series_list(metadata_service, arguments)
+        ),
+        "get_markets": lambda arguments: (
+            handle_get_markets(metadata_service, arguments)
         ),
         "get_series_tickers_for_category": lambda arguments: (
             handle_get_series_tickers_for_category(metadata_service, arguments)
@@ -194,6 +206,151 @@ def handle_get_series_list(
         include_volume=include_volume,
     )
     return _serialize_series_list(series_list)
+
+def handle_get_markets(
+    metadata_service: MetadataService, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    cursor: str | None = None
+    limit: int | None = None
+    event_ticker: str | None = None
+    series_ticker: str | None = None
+    tickers: str | None = None
+    status: str | None = None
+    mve_filter: str | None = None
+    min_created_ts: int | None = None
+    max_created_ts: int | None = None
+    min_updated_ts: int | None = None
+    min_close_ts: int | None = None
+    max_close_ts: int | None = None
+    min_settled_ts: int | None = None
+    max_settled_ts: int | None = None
+
+    if arguments is not None:
+        cursor = _parse_optional_str(
+            arguments,
+            "cursor",
+            type_error="cursor must be a string.",
+            empty_error="cursor must be a non-empty string.",
+        )
+        limit = _parse_optional_int(
+            arguments,
+            "limit",
+            type_error="limit must be an integer.",
+            range_error="limit must be between 1 and 1000.",
+            min_value=1,
+            max_value=1000,
+        )
+        event_ticker = _parse_optional_str(
+            arguments,
+            "event_ticker",
+            type_error="event_ticker must be a string.",
+            empty_error="event_ticker must be a non-empty string.",
+        )
+        series_ticker = _parse_optional_str(
+            arguments,
+            "series_ticker",
+            type_error="series_ticker must be a string.",
+            empty_error="series_ticker must be a non-empty string.",
+        )
+        tickers = _parse_optional_str(
+            arguments,
+            "tickers",
+            type_error="tickers must be a string.",
+            empty_error="tickers must be a non-empty string.",
+        )
+        status = _parse_optional_str(
+            arguments,
+            "status",
+            type_error="status must be a string.",
+            empty_error="status must be a non-empty string.",
+        )
+
+        mve_filter = _parse_optional_str(
+            arguments,
+            "mve_filter",
+            type_error="mve_filter must be a string.",
+            empty_error="mve_filter must be a non-empty string.",
+        )
+        if mve_filter is not None:
+            allowed_mve = {"only", "exclude"}
+            if mve_filter not in allowed_mve:
+                raise ValueError("mve_filter must be one of only, exclude.")
+
+        ts_max = 10_000_000_000
+        min_created_ts = _parse_optional_int(
+            arguments,
+            "min_created_ts",
+            type_error="min_created_ts must be an integer.",
+            range_error="min_created_ts must be a non-negative integer.",
+            min_value=0,
+            max_value=ts_max,
+        )
+        max_created_ts = _parse_optional_int(
+            arguments,
+            "max_created_ts",
+            type_error="max_created_ts must be an integer.",
+            range_error="max_created_ts must be a non-negative integer.",
+            min_value=0,
+            max_value=ts_max,
+        )
+        min_updated_ts = _parse_optional_int(
+            arguments,
+            "min_updated_ts",
+            type_error="min_updated_ts must be an integer.",
+            range_error="min_updated_ts must be a non-negative integer.",
+            min_value=0,
+            max_value=ts_max,
+        )
+        min_close_ts = _parse_optional_int(
+            arguments,
+            "min_close_ts",
+            type_error="min_close_ts must be an integer.",
+            range_error="min_close_ts must be a non-negative integer.",
+            min_value=0,
+            max_value=ts_max,
+        )
+        max_close_ts = _parse_optional_int(
+            arguments,
+            "max_close_ts",
+            type_error="max_close_ts must be an integer.",
+            range_error="max_close_ts must be a non-negative integer.",
+            min_value=0,
+            max_value=ts_max,
+        )
+        min_settled_ts = _parse_optional_int(
+            arguments,
+            "min_settled_ts",
+            type_error="min_settled_ts must be an integer.",
+            range_error="min_settled_ts must be a non-negative integer.",
+            min_value=0,
+            max_value=ts_max,
+        )
+        max_settled_ts = _parse_optional_int(
+            arguments,
+            "max_settled_ts",
+            type_error="max_settled_ts must be an integer.",
+            range_error="max_settled_ts must be a non-negative integer.",
+            min_value=0,
+            max_value=ts_max,
+        )
+
+    markets_list = metadata_service.get_markets(
+        cursor=cursor,
+        limit=limit,
+        event_ticker=event_ticker,
+        series_ticker=series_ticker,
+        tickers=tickers,
+        status=status,
+        mve_filter=mve_filter,
+        min_created_ts=min_created_ts,
+        max_created_ts=max_created_ts,
+        min_updated_ts=min_updated_ts,
+        min_close_ts=min_close_ts,
+        max_close_ts=max_close_ts,
+        min_settled_ts=min_settled_ts,
+        max_settled_ts=max_settled_ts,
+    )
+    return _serialize_markets_list(markets_list)
 
 
 def handle_get_series_tickers_for_category(
@@ -323,3 +480,111 @@ def _serialize_series(series: Series) -> dict[str, Any]:
 
 def _serialize_settlement_source(source: SettlementSource) -> dict[str, str]:
     return {"name": source.name, "url": source.url}
+
+
+def _serialize_markets_list(markets_list: MarketsList) -> dict[str, Any]:
+    serialized: dict[str, Any] = {"markets": [_serialize_market(item) for item in markets_list.markets]}
+    if markets_list.cursor is not None:
+        serialized["cursor"] = markets_list.cursor
+    return serialized
+
+
+def _serialize_market(market: Market) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "ticker": market.ticker,
+        "event_ticker": market.event_ticker,
+        "market_type": market.market_type,
+        "title": market.title,
+        "subtitle": market.subtitle,
+        "status": market.status,
+    }
+
+    _maybe(payload, "series_ticker", market.series_ticker)
+    _maybe(payload, "yes_sub_title", market.yes_sub_title)
+    _maybe(payload, "no_sub_title", market.no_sub_title)
+    _maybe(payload, "created_time", market.created_time)
+    _maybe(payload, "updated_time", market.updated_time)
+    _maybe(payload, "open_time", market.open_time)
+    _maybe(payload, "close_time", market.close_time)
+    _maybe(payload, "expiration_time", market.expiration_time)
+    _maybe(payload, "latest_expiration_time", market.latest_expiration_time)
+    _maybe(payload, "response_price_units", market.response_price_units)
+
+    _maybe(payload, "settlement_timer_seconds", market.settlement_timer_seconds)
+    _maybe(payload, "yes_bid", market.yes_bid)
+    _maybe(payload, "yes_ask", market.yes_ask)
+    _maybe(payload, "no_bid", market.no_bid)
+    _maybe(payload, "no_ask", market.no_ask)
+    _maybe(payload, "last_price", market.last_price)
+    _maybe(payload, "volume", market.volume)
+    _maybe(payload, "volume_24h", market.volume_24h)
+    _maybe(payload, "open_interest", market.open_interest)
+    _maybe(payload, "notional_value", market.notional_value)
+    _maybe(payload, "previous_yes_bid", market.previous_yes_bid)
+    _maybe(payload, "previous_yes_ask", market.previous_yes_ask)
+    _maybe(payload, "previous_price", market.previous_price)
+    _maybe(payload, "liquidity", market.liquidity)
+    _maybe(payload, "tick_size", market.tick_size)
+    _maybe(payload, "settlement_value", market.settlement_value)
+    _maybe(payload, "floor_strike", market.floor_strike)
+    _maybe(payload, "cap_strike", market.cap_strike)
+
+    _maybe(payload, "yes_bid_dollars", market.yes_bid_dollars)
+    _maybe(payload, "yes_ask_dollars", market.yes_ask_dollars)
+    _maybe(payload, "no_bid_dollars", market.no_bid_dollars)
+    _maybe(payload, "no_ask_dollars", market.no_ask_dollars)
+    _maybe(payload, "last_price_dollars", market.last_price_dollars)
+    _maybe(payload, "volume_fp", market.volume_fp)
+    _maybe(payload, "volume_24h_fp", market.volume_24h_fp)
+    _maybe(payload, "open_interest_fp", market.open_interest_fp)
+    _maybe(payload, "notional_value_dollars", market.notional_value_dollars)
+    _maybe(payload, "previous_yes_bid_dollars", market.previous_yes_bid_dollars)
+    _maybe(payload, "previous_yes_ask_dollars", market.previous_yes_ask_dollars)
+    _maybe(payload, "previous_price_dollars", market.previous_price_dollars)
+    _maybe(payload, "liquidity_dollars", market.liquidity_dollars)
+    _maybe(payload, "settlement_value_dollars", market.settlement_value_dollars)
+
+    _maybe(payload, "result", market.result)
+    _maybe(payload, "can_close_early", market.can_close_early)
+    _maybe(payload, "expiration_value", market.expiration_value)
+    _maybe(payload, "rules_primary", market.rules_primary)
+    _maybe(payload, "rules_secondary", market.rules_secondary)
+    _maybe(payload, "price_level_structure", market.price_level_structure)
+    if market.price_ranges is not None:
+        payload["price_ranges"] = [_serialize_price_range(item) for item in market.price_ranges]
+    _maybe(payload, "expected_expiration_time", market.expected_expiration_time)
+    _maybe(payload, "settlement_ts", market.settlement_ts)
+    _maybe(payload, "fee_waiver_expiration_time", market.fee_waiver_expiration_time)
+    _maybe(payload, "early_close_condition", market.early_close_condition)
+    _maybe(payload, "strike_type", market.strike_type)
+    _maybe(payload, "functional_strike", market.functional_strike)
+    if market.custom_strike is not None:
+        payload["custom_strike"] = market.custom_strike
+    _maybe(payload, "mve_collection_ticker", market.mve_collection_ticker)
+    if market.mve_selected_legs is not None:
+        payload["mve_selected_legs"] = [
+            _serialize_mve_selected_leg(item) for item in market.mve_selected_legs
+        ]
+    _maybe(payload, "primary_participant_key", market.primary_participant_key)
+    _maybe(payload, "is_provisional", market.is_provisional)
+
+    return payload
+
+
+def _serialize_price_range(item: PriceRange) -> dict[str, str]:
+    return {"start": item.start, "end": item.end, "step": item.step}
+
+
+def _serialize_mve_selected_leg(item: MveSelectedLeg) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "event_ticker": item.event_ticker,
+        "market_ticker": item.market_ticker,
+        "side": item.side,
+    }
+    _maybe(payload, "yes_settlement_value_dollars", item.yes_settlement_value_dollars)
+    return payload
+
+
+def _maybe(payload: dict[str, Any], key: str, value: Any) -> None:
+    if value is not None:
+        payload[key] = value
