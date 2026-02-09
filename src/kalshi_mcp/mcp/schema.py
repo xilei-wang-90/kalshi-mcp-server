@@ -250,6 +250,62 @@ GET_OPEN_MARKET_TITLES_FOR_SERIES_TOOL = {
     },
 }
 
+GET_OPEN_MARKET_TITLES_FOR_CATEGORY_TOOL = {
+    "name": "get_open_market_titles_for_category",
+    "description": (
+        "Get ticker + title + subtitle + yes_sub_title + no_sub_title for all OPEN markets in a Kalshi category. "
+        "Internally pages through the public GET /series endpoint to find series tickers in the category, "
+        "then pages the public GET /markets endpoint with status=open for each series."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "category": {
+                "type": "string",
+                "description": "Exact Kalshi series category name.",
+                "minLength": 1,
+            },
+            "tags": {
+                "type": "string",
+                "description": "Optional tags filter (same meaning as /series?tags=...).",
+                "minLength": 1,
+            },
+            "series_limit": {
+                "type": "integer",
+                "description": "Optional page size for each /series request (1-1000). Defaults to 1000.",
+                "minimum": 1,
+                "maximum": 1000,
+            },
+            "series_max_pages": {
+                "type": "integer",
+                "description": (
+                    "Safety cap on number of /series pages to fetch. Defaults to 1000. "
+                    "Set lower to bound response size/time."
+                ),
+                "minimum": 1,
+                "maximum": 10000,
+            },
+            "markets_limit": {
+                "type": "integer",
+                "description": "Optional page size for each /markets request (1-1000). Defaults to 1000.",
+                "minimum": 1,
+                "maximum": 1000,
+            },
+            "markets_max_pages": {
+                "type": "integer",
+                "description": (
+                    "Safety cap on number of /markets pages to fetch per series. Defaults to 1000. "
+                    "Set lower to bound response size/time."
+                ),
+                "minimum": 1,
+                "maximum": 10000,
+            },
+        },
+        "required": ["category"],
+        "additionalProperties": False,
+    },
+}
+
 GET_SERIES_TICKERS_FOR_CATEGORY_TOOL = {
     "name": "get_series_tickers_for_category",
     "description": (
