@@ -77,6 +77,16 @@ class ResourceRegistry:
                 description="All series tickers for a single category (paged from /series).",
             ),
             ResourceTemplateDescriptor(
+                uriTemplate="kalshi:///series/{series_ticker}/open_markets{?limit,max_pages}",
+                name="Kalshi Open Markets For Series",
+                description="All OPEN markets for a series ticker (paged from /markets).",
+            ),
+            ResourceTemplateDescriptor(
+                uriTemplate="kalshi:///series/{series_ticker}/open_market_titles{?limit,max_pages}",
+                name="Kalshi Open Market Titles For Series",
+                description="Ticker/title/subtitle for all OPEN markets in a series ticker (paged from /markets).",
+            ),
+            ResourceTemplateDescriptor(
                 uriTemplate=(
                     "kalshi:///series{?category,tags,cursor,limit,include_product_metadata,include_volume}"
                 ),
@@ -155,6 +165,34 @@ class ResourceRegistry:
             if "include_volume" in q and q["include_volume"]:
                 args["include_volume"] = _parse_bool(q["include_volume"][0])
             return self._tool_registry.call_tool("get_series_list", args)
+
+        if path.startswith("/series/") and path.endswith("/open_markets"):
+            # /series/{series_ticker}/open_markets
+            parts = [p for p in path.split("/") if p]
+            if len(parts) != 3 or parts[0] != "series" or parts[2] != "open_markets":
+                raise ValueError("Invalid series open markets resource uri")
+            series_ticker = parse.unquote(parts[1])
+            args = {"series_ticker": series_ticker}
+            q = parse.parse_qs(query, keep_blank_values=False)
+            if "limit" in q and q["limit"]:
+                args["limit"] = _parse_int(q["limit"][0])
+            if "max_pages" in q and q["max_pages"]:
+                args["max_pages"] = _parse_int(q["max_pages"][0])
+            return self._tool_registry.call_tool("get_open_markets_for_series", args)
+
+        if path.startswith("/series/") and path.endswith("/open_market_titles"):
+            # /series/{series_ticker}/open_market_titles
+            parts = [p for p in path.split("/") if p]
+            if len(parts) != 3 or parts[0] != "series" or parts[2] != "open_market_titles":
+                raise ValueError("Invalid series open market titles resource uri")
+            series_ticker = parse.unquote(parts[1])
+            args = {"series_ticker": series_ticker}
+            q = parse.parse_qs(query, keep_blank_values=False)
+            if "limit" in q and q["limit"]:
+                args["limit"] = _parse_int(q["limit"][0])
+            if "max_pages" in q and q["max_pages"]:
+                args["max_pages"] = _parse_int(q["max_pages"][0])
+            return self._tool_registry.call_tool("get_open_market_titles_for_series", args)
 
         raise ValueError("Unknown resource uri")
 

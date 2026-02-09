@@ -180,6 +180,76 @@ GET_MARKETS_TOOL = {
     },
 }
 
+GET_OPEN_MARKETS_FOR_SERIES_TOOL = {
+    "name": "get_open_markets_for_series",
+    "description": (
+        "Get all OPEN markets for a Kalshi series ticker. "
+        "Internally pages through the public GET /markets endpoint with status=open."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "series_ticker": {
+                "type": "string",
+                "description": "Series ticker to filter markets by.",
+                "minLength": 1,
+            },
+            "limit": {
+                "type": "integer",
+                "description": "Optional page size for each /markets request (1-1000). Defaults to 1000.",
+                "minimum": 1,
+                "maximum": 1000,
+            },
+            "max_pages": {
+                "type": "integer",
+                "description": (
+                    "Safety cap on number of pages to fetch. Defaults to 1000. "
+                    "Set lower to bound response size/time."
+                ),
+                "minimum": 1,
+                "maximum": 10000,
+            },
+        },
+        "required": ["series_ticker"],
+        "additionalProperties": False,
+    },
+}
+
+GET_OPEN_MARKET_TITLES_FOR_SERIES_TOOL = {
+    "name": "get_open_market_titles_for_series",
+    "description": (
+        "Get ticker + title + subtitle for all OPEN markets in a Kalshi series ticker. "
+        "Internally pages through the public GET /markets endpoint with status=open."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "series_ticker": {
+                "type": "string",
+                "description": "Series ticker to filter markets by.",
+                "minLength": 1,
+            },
+            "limit": {
+                "type": "integer",
+                "description": "Optional page size for each /markets request (1-1000). Defaults to 1000.",
+                "minimum": 1,
+                "maximum": 1000,
+            },
+            "max_pages": {
+                "type": "integer",
+                "description": (
+                    "Safety cap on number of pages to fetch. Defaults to 1000. "
+                    "Set lower to bound response size/time."
+                ),
+                "minimum": 1,
+                "maximum": 10000,
+            },
+        },
+        "required": ["series_ticker"],
+        "additionalProperties": False,
+    },
+}
+
 GET_SERIES_TICKERS_FOR_CATEGORY_TOOL = {
     "name": "get_series_tickers_for_category",
     "description": (

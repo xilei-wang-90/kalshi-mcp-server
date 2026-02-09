@@ -52,6 +52,24 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
     - `min_settled_ts`/`max_settled_ts` (int; unix seconds)
   - Returns typed markets from Kalshi response
   - No API key required
+- `get_open_markets_for_series`
+  - Pages Kalshi public endpoint: `GET /markets`
+  - Required arguments:
+    - `series_ticker` (string)
+  - Optional arguments:
+    - `limit` (int, 1-1000; defaults to 1000)
+    - `max_pages` (int, 1-10000; defaults to 1000)
+  - Forces `status=open` and returns all markets across all pages
+  - No API key required
+- `get_open_market_titles_for_series`
+  - Pages Kalshi public endpoint: `GET /markets`
+  - Required arguments:
+    - `series_ticker` (string)
+  - Optional arguments:
+    - `limit` (int, 1-1000; defaults to 1000)
+    - `max_pages` (int, 1-10000; defaults to 1000)
+  - Forces `status=open` and returns only `ticker`, `title`, `subtitle` for each market across all pages
+  - No API key required
 
 ## Configuration
 - `KALSHI_API_BASE_URL`

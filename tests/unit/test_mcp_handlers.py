@@ -7,6 +7,8 @@ from kalshi_mcp.mcp.handlers import (
     handle_get_tags_for_series_categories,
     handle_get_tags_for_series_category,
     handle_get_markets,
+    handle_get_open_markets_for_series,
+    handle_get_open_market_titles_for_series,
 )
 from kalshi_mcp.models import Market, MarketsList, Series, SeriesList, SettlementSource, TagsByCategories
 
@@ -162,6 +164,74 @@ class _FakeMetadataService:
             cursor="next-page",
         )
 
+class _PagingMarketsMetadataService(_FakeMetadataService):
+    def get_markets(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int | None = None,
+        event_ticker: str | None = None,
+        series_ticker: str | None = None,
+        tickers: str | None = None,
+        status: str | None = None,
+        mve_filter: str | None = None,
+        min_created_ts: int | None = None,
+        max_created_ts: int | None = None,
+        min_updated_ts: int | None = None,
+        min_close_ts: int | None = None,
+        max_close_ts: int | None = None,
+        min_settled_ts: int | None = None,
+        max_settled_ts: int | None = None,
+    ) -> MarketsList:
+        _ = (
+            limit,
+            event_ticker,
+            tickers,
+            mve_filter,
+            min_created_ts,
+            max_created_ts,
+            min_updated_ts,
+            min_close_ts,
+            max_close_ts,
+            min_settled_ts,
+            max_settled_ts,
+        )
+
+        # Simulate a 2-page /markets response for series KXBTCUSD.
+        if series_ticker == "KXBTCUSD" and status == "open":
+            if cursor is None:
+                return MarketsList(
+                    markets=[
+                        Market(
+                            ticker="KXBTCUSD-25JAN01-T1",
+                            event_ticker="KXBTCUSD-25JAN01",
+                            market_type="binary",
+                            title="Will Bitcoin close above 100k on Jan 1?",
+                            subtitle="Yes",
+                            status="open",
+                            series_ticker="KXBTCUSD",
+                        )
+                    ],
+                    cursor="page-2",
+                )
+            if cursor == "page-2":
+                return MarketsList(
+                    markets=[
+                        Market(
+                            ticker="KXBTCUSD-25JAN02-T1",
+                            event_ticker="KXBTCUSD-25JAN02",
+                            market_type="binary",
+                            title="Will Bitcoin close above 100k on Jan 2?",
+                            subtitle="Yes",
+                            status="open",
+                            series_ticker="KXBTCUSD",
+                        )
+                    ],
+                    cursor=None,
+                )
+
+        return MarketsList(markets=[], cursor=None)
+
 
 class HandlersTests(unittest.TestCase):
     def test_get_tags_for_series_categories_handler(self) -> None:
@@ -256,6 +326,35 @@ class HandlersTests(unittest.TestCase):
     def test_get_markets_rejects_invalid_mve_filter(self) -> None:
         with self.assertRaises(ValueError):
             handle_get_markets(_FakeMetadataService(), {"mve_filter": "maybe"})
+
+    def test_get_open_markets_for_series_pages_and_forces_open(self) -> None:
+        result = handle_get_open_markets_for_series(
+            _PagingMarketsMetadataService(), {"series_ticker": "KXBTCUSD"}
+        )
+        self.assertEqual("KXBTCUSD", result["series_ticker"])
+        self.assertEqual("open", result["status"])
+        self.assertEqual(2, result["count"])
+        self.assertEqual(2, result["pages"])
+        self.assertEqual(["KXBTCUSD-25JAN01-T1", "KXBTCUSD-25JAN02-T1"], [m["ticker"] for m in result["markets"]])
+
+    def test_get_open_market_titles_for_series_returns_only_title_fields(self) -> None:
+        result = handle_get_open_market_titles_for_series(
+            _PagingMarketsMetadataService(), {"series_ticker": "KXBTCUSD"}
+        )
+        self.assertEqual("KXBTCUSD", result["series_ticker"])
+        self.assertEqual("open", result["status"])
+        self.assertEqual(2, result["count"])
+        self.assertEqual(2, result["pages"])
+        first = result["markets"][0]
+        self.assertEqual({"ticker", "title", "subtitle"}, set(first.keys()))
+
+    def test_get_open_markets_for_series_requires_arguments(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_open_markets_for_series(_FakeMetadataService(), None)
+
+    def test_get_open_market_titles_for_series_requires_arguments(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_open_market_titles_for_series(_FakeMetadataService(), None)
 
 
 if __name__ == "__main__":

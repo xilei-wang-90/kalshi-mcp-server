@@ -102,6 +102,12 @@ def build_tool_handlers(metadata_service: MetadataService) -> dict[str, ToolHand
         "get_markets": lambda arguments: (
             handle_get_markets(metadata_service, arguments)
         ),
+        "get_open_markets_for_series": lambda arguments: (
+            handle_get_open_markets_for_series(metadata_service, arguments)
+        ),
+        "get_open_market_titles_for_series": lambda arguments: (
+            handle_get_open_market_titles_for_series(metadata_service, arguments)
+        ),
         "get_series_tickers_for_category": lambda arguments: (
             handle_get_series_tickers_for_category(metadata_service, arguments)
         ),
@@ -351,6 +357,140 @@ def handle_get_markets(
         max_settled_ts=max_settled_ts,
     )
     return _serialize_markets_list(markets_list)
+
+
+def _page_open_markets_for_series(
+    metadata_service: MetadataService,
+    *,
+    series_ticker: str,
+    limit: int,
+    max_pages: int,
+) -> tuple[list[Market], int]:
+    markets: list[Market] = []
+    cursor: str | None = None
+    seen_cursors: set[str] = set()
+    pages = 0
+
+    while True:
+        if pages >= max_pages:
+            raise ValueError(
+                "Exceeded max_pages while paging /markets; reduce scope or increase max_pages."
+            )
+
+        markets_list = metadata_service.get_markets(
+            cursor=cursor,
+            limit=limit,
+            series_ticker=series_ticker,
+            status="open",
+        )
+        markets.extend(markets_list.markets)
+
+        pages += 1
+        next_cursor = markets_list.cursor
+        if next_cursor is None:
+            break
+
+        # Protect against a buggy/looping cursor.
+        if next_cursor in seen_cursors:
+            raise ValueError("Kalshi /markets cursor repeated; aborting pagination.")
+        seen_cursors.add(next_cursor)
+        cursor = next_cursor
+
+    return markets, pages
+
+
+def handle_get_open_markets_for_series(
+    metadata_service: MetadataService, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    args = _require_arguments(arguments, "get_open_markets_for_series")
+    series_ticker = _parse_required_str(
+        args,
+        "series_ticker",
+        type_error="series_ticker must be a string.",
+        empty_error="series_ticker must be a non-empty string.",
+    )
+
+    # Default to max Kalshi page size to minimize API round-trips.
+    limit = (
+        _parse_optional_int(
+            args,
+            "limit",
+            type_error="limit must be an integer.",
+            range_error="limit must be between 1 and 1000.",
+            min_value=1,
+            max_value=1000,
+        )
+        or 1000
+    )
+    max_pages = (
+        _parse_optional_int(
+            args,
+            "max_pages",
+            type_error="max_pages must be an integer.",
+            range_error="max_pages must be between 1 and 10000.",
+            min_value=1,
+            max_value=10000,
+        )
+        or 1000
+    )
+
+    markets, pages = _page_open_markets_for_series(
+        metadata_service, series_ticker=series_ticker, limit=limit, max_pages=max_pages
+    )
+    return {
+        "series_ticker": series_ticker,
+        "status": "open",
+        "markets": [_serialize_market(m) for m in markets],
+        "count": len(markets),
+        "pages": pages,
+    }
+
+
+def handle_get_open_market_titles_for_series(
+    metadata_service: MetadataService, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    args = _require_arguments(arguments, "get_open_market_titles_for_series")
+    series_ticker = _parse_required_str(
+        args,
+        "series_ticker",
+        type_error="series_ticker must be a string.",
+        empty_error="series_ticker must be a non-empty string.",
+    )
+
+    # Default to max Kalshi page size to minimize API round-trips.
+    limit = (
+        _parse_optional_int(
+            args,
+            "limit",
+            type_error="limit must be an integer.",
+            range_error="limit must be between 1 and 1000.",
+            min_value=1,
+            max_value=1000,
+        )
+        or 1000
+    )
+    max_pages = (
+        _parse_optional_int(
+            args,
+            "max_pages",
+            type_error="max_pages must be an integer.",
+            range_error="max_pages must be between 1 and 10000.",
+            min_value=1,
+            max_value=10000,
+        )
+        or 1000
+    )
+
+    markets, pages = _page_open_markets_for_series(
+        metadata_service, series_ticker=series_ticker, limit=limit, max_pages=max_pages
+    )
+    return {
+        "series_ticker": series_ticker,
+        "status": "open",
+        "markets": [{"ticker": m.ticker, "title": m.title, "subtitle": m.subtitle} for m in markets],
+        "count": len(markets),
+        "pages": pages,
+    }
 
 
 def handle_get_series_tickers_for_category(

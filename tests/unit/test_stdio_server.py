@@ -188,6 +188,8 @@ class StdioServerTests(unittest.TestCase):
                 "get_tags_for_series_category",
                 "get_series_list",
                 "get_markets",
+                "get_open_markets_for_series",
+                "get_open_market_titles_for_series",
                 "get_series_tickers_for_category",
             ],
             tool_names,
@@ -210,6 +212,8 @@ class StdioServerTests(unittest.TestCase):
             [
                 "kalshi:///category/{category}/tags",
                 "kalshi:///category/{category}/series_tickers{?tags,limit,max_pages}",
+                "kalshi:///series/{series_ticker}/open_markets{?limit,max_pages}",
+                "kalshi:///series/{series_ticker}/open_market_titles{?limit,max_pages}",
                 "kalshi:///series{?category,tags,cursor,limit,include_product_metadata,include_volume}",
             ],
             template_uris,
