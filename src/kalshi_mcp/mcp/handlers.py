@@ -10,6 +10,72 @@ from ..services import MetadataService
 ToolHandler = Callable[[dict[str, Any] | None], dict[str, Any]]
 
 
+def _require_arguments(arguments: dict[str, Any] | None, tool_name: str) -> dict[str, Any]:
+    if arguments is None:
+        raise ValueError(f"Missing arguments for {tool_name}.")
+    return arguments
+
+
+def _parse_required_str(
+    arguments: dict[str, Any],
+    key: str,
+    *,
+    type_error: str,
+    empty_error: str | None = None,
+) -> str:
+    value = arguments.get(key)
+    if not isinstance(value, str):
+        raise ValueError(type_error)
+    normalized = value.strip()
+    if empty_error is not None and not normalized:
+        raise ValueError(empty_error)
+    return normalized
+
+
+def _parse_optional_str(
+    arguments: dict[str, Any],
+    key: str,
+    *,
+    type_error: str,
+    empty_error: str,
+) -> str | None:
+    value = arguments.get(key)
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise ValueError(type_error)
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError(empty_error)
+    return normalized
+
+
+def _parse_optional_int(
+    arguments: dict[str, Any],
+    key: str,
+    *,
+    type_error: str,
+    range_error: str,
+    min_value: int,
+    max_value: int,
+) -> int | None:
+    value = arguments.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, int):
+        raise ValueError(type_error)
+    if value < min_value or value > max_value:
+        raise ValueError(range_error)
+    return value
+
+
+def _parse_bool(arguments: dict[str, Any], key: str, default: bool, *, type_error: str) -> bool:
+    value = arguments.get(key, default)
+    if not isinstance(value, bool):
+        raise ValueError(type_error)
+    return value
+
+
 def build_tool_handlers(metadata_service: MetadataService) -> dict[str, ToolHandler]:
     return {
         "get_tags_for_series_categories": lambda arguments: (
@@ -57,15 +123,16 @@ def handle_get_categories(
 def handle_get_tags_for_series_category(
     metadata_service: MetadataService, arguments: dict[str, Any] | None
 ) -> dict[str, Any]:
-    if arguments is None:
-        raise ValueError("Missing arguments for get_tags_for_series_category.")
-
-    category = arguments.get("category")
-    if not isinstance(category, str):
-        raise ValueError("category must be a string.")
+    args = _require_arguments(arguments, "get_tags_for_series_category")
+    category = _parse_required_str(
+        args,
+        "category",
+        type_error="category must be a string.",
+        empty_error="category must be a non-empty string.",
+    )
 
     tags = metadata_service.get_tags_for_series_category(category)
-    return {"category": category.strip(), "tags": tags}
+    return {"category": category, "tags": tags}
 
 
 def handle_get_series_list(
@@ -79,47 +146,44 @@ def handle_get_series_list(
     include_volume = False
 
     if arguments is not None:
-        raw_category = arguments.get("category")
-        if raw_category is not None:
-            if not isinstance(raw_category, str):
-                raise ValueError("category must be a string.")
-            category = raw_category.strip()
-            if not category:
-                raise ValueError("category must be a non-empty string.")
-
-        raw_tags = arguments.get("tags")
-        if raw_tags is not None:
-            if not isinstance(raw_tags, str):
-                raise ValueError("tags must be a string.")
-            tags = raw_tags.strip()
-            if not tags:
-                raise ValueError("tags must be a non-empty string.")
-
-        raw_cursor = arguments.get("cursor")
-        if raw_cursor is not None:
-            if not isinstance(raw_cursor, str):
-                raise ValueError("cursor must be a string.")
-            cursor = raw_cursor.strip()
-            if not cursor:
-                raise ValueError("cursor must be a non-empty string.")
-
-        raw_limit = arguments.get("limit")
-        if raw_limit is not None:
-            if isinstance(raw_limit, bool) or not isinstance(raw_limit, int):
-                raise ValueError("limit must be an integer.")
-            if raw_limit < 1 or raw_limit > 1000:
-                raise ValueError("limit must be between 1 and 1000.")
-            limit = raw_limit
-
-        raw_include_product_metadata = arguments.get("include_product_metadata", False)
-        if not isinstance(raw_include_product_metadata, bool):
-            raise ValueError("include_product_metadata must be a boolean.")
-        include_product_metadata = raw_include_product_metadata
-
-        raw_include_volume = arguments.get("include_volume", False)
-        if not isinstance(raw_include_volume, bool):
-            raise ValueError("include_volume must be a boolean.")
-        include_volume = raw_include_volume
+        category = _parse_optional_str(
+            arguments,
+            "category",
+            type_error="category must be a string.",
+            empty_error="category must be a non-empty string.",
+        )
+        tags = _parse_optional_str(
+            arguments,
+            "tags",
+            type_error="tags must be a string.",
+            empty_error="tags must be a non-empty string.",
+        )
+        cursor = _parse_optional_str(
+            arguments,
+            "cursor",
+            type_error="cursor must be a string.",
+            empty_error="cursor must be a non-empty string.",
+        )
+        limit = _parse_optional_int(
+            arguments,
+            "limit",
+            type_error="limit must be an integer.",
+            range_error="limit must be between 1 and 1000.",
+            min_value=1,
+            max_value=1000,
+        )
+        include_product_metadata = _parse_bool(
+            arguments,
+            "include_product_metadata",
+            False,
+            type_error="include_product_metadata must be a boolean.",
+        )
+        include_volume = _parse_bool(
+            arguments,
+            "include_volume",
+            False,
+            type_error="include_volume must be a boolean.",
+        )
 
     series_list = metadata_service.get_series_list(
         category=category,
@@ -135,43 +199,45 @@ def handle_get_series_list(
 def handle_get_series_tickers_for_category(
     metadata_service: MetadataService, arguments: dict[str, Any] | None
 ) -> dict[str, Any]:
-    if arguments is None:
-        raise ValueError("Missing arguments for get_series_tickers_for_category.")
+    args = _require_arguments(arguments, "get_series_tickers_for_category")
 
-    raw_category = arguments.get("category")
-    if not isinstance(raw_category, str):
-        raise ValueError("category must be a string.")
-    category = raw_category.strip()
-    if not category:
-        raise ValueError("category must be a non-empty string.")
-
-    tags: str | None = None
-    raw_tags = arguments.get("tags")
-    if raw_tags is not None:
-        if not isinstance(raw_tags, str):
-            raise ValueError("tags must be a string.")
-        tags = raw_tags.strip()
-        if not tags:
-            raise ValueError("tags must be a non-empty string.")
+    category = _parse_required_str(
+        args,
+        "category",
+        type_error="category must be a string.",
+        empty_error="category must be a non-empty string.",
+    )
+    tags = _parse_optional_str(
+        args,
+        "tags",
+        type_error="tags must be a string.",
+        empty_error="tags must be a non-empty string.",
+    )
 
     # Default to max Kalshi page size to minimize API round-trips.
-    limit = 1000
-    raw_limit = arguments.get("limit")
-    if raw_limit is not None:
-        if isinstance(raw_limit, bool) or not isinstance(raw_limit, int):
-            raise ValueError("limit must be an integer.")
-        if raw_limit < 1 or raw_limit > 1000:
-            raise ValueError("limit must be between 1 and 1000.")
-        limit = raw_limit
+    limit = (
+        _parse_optional_int(
+            args,
+            "limit",
+            type_error="limit must be an integer.",
+            range_error="limit must be between 1 and 1000.",
+            min_value=1,
+            max_value=1000,
+        )
+        or 1000
+    )
 
-    max_pages = 1000
-    raw_max_pages = arguments.get("max_pages")
-    if raw_max_pages is not None:
-        if isinstance(raw_max_pages, bool) or not isinstance(raw_max_pages, int):
-            raise ValueError("max_pages must be an integer.")
-        if raw_max_pages < 1 or raw_max_pages > 10000:
-            raise ValueError("max_pages must be between 1 and 10000.")
-        max_pages = raw_max_pages
+    max_pages = (
+        _parse_optional_int(
+            args,
+            "max_pages",
+            type_error="max_pages must be an integer.",
+            range_error="max_pages must be between 1 and 10000.",
+            min_value=1,
+            max_value=10000,
+        )
+        or 1000
+    )
 
     tickers: list[str] = []
     seen_tickers: set[str] = set()
