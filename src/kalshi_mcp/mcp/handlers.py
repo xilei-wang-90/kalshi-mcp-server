@@ -487,7 +487,16 @@ def handle_get_open_market_titles_for_series(
     return {
         "series_ticker": series_ticker,
         "status": "open",
-        "markets": [{"ticker": m.ticker, "title": m.title, "subtitle": m.subtitle} for m in markets],
+        "markets": [
+            {
+                "ticker": m.ticker,
+                "title": m.title,
+                "subtitle": m.subtitle,
+                "yes_sub_title": m.yes_sub_title,
+                "no_sub_title": m.no_sub_title,
+            }
+            for m in markets
+        ],
         "count": len(markets),
         "pages": pages,
     }

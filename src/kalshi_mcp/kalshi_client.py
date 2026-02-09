@@ -107,6 +107,9 @@ class KalshiClient:
                 self._describe_value(cursor),
             )
             cursor = None
+        # Kalshi may return an empty string cursor when pagination is complete.
+        if cursor == "":
+            cursor = None
 
         return SeriesList(series=parsed_series, cursor=cursor)
 
@@ -188,6 +191,9 @@ class KalshiClient:
                 "Ignoring unexpected 'cursor' type in markets response: %s",
                 self._describe_value(next_cursor),
             )
+            next_cursor = None
+        # Kalshi may return an empty string cursor when pagination is complete.
+        if next_cursor == "":
             next_cursor = None
 
         return MarketsList(markets=parsed_markets, cursor=next_cursor)

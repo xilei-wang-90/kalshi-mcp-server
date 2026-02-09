@@ -218,7 +218,7 @@ GET_OPEN_MARKETS_FOR_SERIES_TOOL = {
 GET_OPEN_MARKET_TITLES_FOR_SERIES_TOOL = {
     "name": "get_open_market_titles_for_series",
     "description": (
-        "Get ticker + title + subtitle for all OPEN markets in a Kalshi series ticker. "
+        "Get ticker + title + subtitle + yes_sub_title + no_sub_title for all OPEN markets in a Kalshi series ticker. "
         "Internally pages through the public GET /markets endpoint with status=open."
     ),
     "inputSchema": {

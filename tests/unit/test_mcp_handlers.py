@@ -346,7 +346,9 @@ class HandlersTests(unittest.TestCase):
         self.assertEqual(2, result["count"])
         self.assertEqual(2, result["pages"])
         first = result["markets"][0]
-        self.assertEqual({"ticker", "title", "subtitle"}, set(first.keys()))
+        self.assertEqual(
+            {"ticker", "title", "subtitle", "yes_sub_title", "no_sub_title"}, set(first.keys())
+        )
 
     def test_get_open_markets_for_series_requires_arguments(self) -> None:
         with self.assertRaises(ValueError):
