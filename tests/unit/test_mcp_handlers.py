@@ -9,7 +9,6 @@ from kalshi_mcp.mcp.handlers import (
     handle_get_markets,
     handle_get_open_markets_for_series,
     handle_get_open_market_titles_for_series,
-    handle_get_open_market_titles_for_category,
 )
 from kalshi_mcp.models import Market, MarketsList, Series, SeriesList, SettlementSource, TagsByCategories
 
@@ -233,79 +232,6 @@ class _PagingMarketsMetadataService(_FakeMetadataService):
 
         return MarketsList(markets=[], cursor=None)
 
-class _PagingMarketsTwoSeriesMetadataService(_FakeMetadataService):
-    def get_markets(
-        self,
-        *,
-        cursor: str | None = None,
-        limit: int | None = None,
-        event_ticker: str | None = None,
-        series_ticker: str | None = None,
-        tickers: str | None = None,
-        status: str | None = None,
-        mve_filter: str | None = None,
-        min_created_ts: int | None = None,
-        max_created_ts: int | None = None,
-        min_updated_ts: int | None = None,
-        min_close_ts: int | None = None,
-        max_close_ts: int | None = None,
-        min_settled_ts: int | None = None,
-        max_settled_ts: int | None = None,
-    ) -> MarketsList:
-        _ = (
-            cursor,
-            limit,
-            event_ticker,
-            tickers,
-            mve_filter,
-            min_created_ts,
-            max_created_ts,
-            min_updated_ts,
-            min_close_ts,
-            max_close_ts,
-            min_settled_ts,
-            max_settled_ts,
-        )
-
-        if status == "open" and series_ticker == "KXBTCUSD":
-            return MarketsList(
-                markets=[
-                    Market(
-                        ticker="KXBTCUSD-25JAN01-T1",
-                        event_ticker="KXBTCUSD-25JAN01",
-                        market_type="binary",
-                        title="Will Bitcoin close above 100k on Jan 1?",
-                        subtitle="Yes",
-                        status="open",
-                        series_ticker="KXBTCUSD",
-                        yes_sub_title="Yes",
-                        no_sub_title="No",
-                    )
-                ],
-                cursor=None,
-            )
-
-        if status == "open" and series_ticker == "KXETHUSD":
-            return MarketsList(
-                markets=[
-                    Market(
-                        ticker="KXETHUSD-25JAN01-T1",
-                        event_ticker="KXETHUSD-25JAN01",
-                        market_type="binary",
-                        title="Will Ethereum close above 10k on Jan 1?",
-                        subtitle="Yes",
-                        status="open",
-                        series_ticker="KXETHUSD",
-                        yes_sub_title="Yes",
-                        no_sub_title="No",
-                    )
-                ],
-                cursor=None,
-            )
-
-        return MarketsList(markets=[], cursor=None)
-
-
 class HandlersTests(unittest.TestCase):
     def test_get_tags_for_series_categories_handler(self) -> None:
         result = handle_get_tags_for_series_categories(_FakeMetadataService(), None)
@@ -423,21 +349,6 @@ class HandlersTests(unittest.TestCase):
             {"ticker", "title", "subtitle", "yes_sub_title", "no_sub_title"}, set(first.keys())
         )
 
-    def test_get_open_market_titles_for_category_returns_title_fields(self) -> None:
-        result = handle_get_open_market_titles_for_category(
-            _PagingMarketsTwoSeriesMetadataService(),
-            {"category": "Crypto"},
-        )
-        self.assertEqual("Crypto", result["category"])
-        self.assertEqual("open", result["status"])
-        self.assertEqual(2, result["series_count"])
-        self.assertEqual(2, result["count"])
-        first = result["markets"][0]
-        self.assertEqual(
-            {"series_ticker", "ticker", "title", "subtitle", "yes_sub_title", "no_sub_title"},
-            set(first.keys()),
-        )
-
     def test_get_open_markets_for_series_requires_arguments(self) -> None:
         with self.assertRaises(ValueError):
             handle_get_open_markets_for_series(_FakeMetadataService(), None)
@@ -445,10 +356,6 @@ class HandlersTests(unittest.TestCase):
     def test_get_open_market_titles_for_series_requires_arguments(self) -> None:
         with self.assertRaises(ValueError):
             handle_get_open_market_titles_for_series(_FakeMetadataService(), None)
-
-    def test_get_open_market_titles_for_category_requires_arguments(self) -> None:
-        with self.assertRaises(ValueError):
-            handle_get_open_market_titles_for_category(_FakeMetadataService(), None)
 
 
 if __name__ == "__main__":
