@@ -108,9 +108,6 @@ def build_tool_handlers(metadata_service: MetadataService) -> dict[str, ToolHand
         "get_open_market_titles_for_series": lambda arguments: (
             handle_get_open_market_titles_for_series(metadata_service, arguments)
         ),
-        "get_open_market_titles_for_category": lambda arguments: (
-            handle_get_open_market_titles_for_category(metadata_service, arguments)
-        ),
         "get_series_tickers_for_category": lambda arguments: (
             handle_get_series_tickers_for_category(metadata_service, arguments)
         ),
@@ -497,115 +494,6 @@ def handle_get_open_markets_for_series(
         "count": len(markets),
         "pages": pages,
     }
-
-
-def handle_get_open_market_titles_for_category(
-    metadata_service: MetadataService, arguments: dict[str, Any] | None
-) -> dict[str, Any]:
-    args = _require_arguments(arguments, "get_open_market_titles_for_category")
-    category = _parse_required_str(
-        args,
-        "category",
-        type_error="category must be a string.",
-        empty_error="category must be a non-empty string.",
-    )
-    tags = _parse_optional_str(
-        args,
-        "tags",
-        type_error="tags must be a string.",
-        empty_error="tags must be a non-empty string.",
-    )
-
-    # Default to max Kalshi page size to minimize API round-trips.
-    series_limit = (
-        _parse_optional_int(
-            args,
-            "series_limit",
-            type_error="series_limit must be an integer.",
-            range_error="series_limit must be between 1 and 1000.",
-            min_value=1,
-            max_value=1000,
-        )
-        or 1000
-    )
-    series_max_pages = (
-        _parse_optional_int(
-            args,
-            "series_max_pages",
-            type_error="series_max_pages must be an integer.",
-            range_error="series_max_pages must be between 1 and 10000.",
-            min_value=1,
-            max_value=10000,
-        )
-        or 1000
-    )
-    markets_limit = (
-        _parse_optional_int(
-            args,
-            "markets_limit",
-            type_error="markets_limit must be an integer.",
-            range_error="markets_limit must be between 1 and 1000.",
-            min_value=1,
-            max_value=1000,
-        )
-        or 1000
-    )
-    markets_max_pages = (
-        _parse_optional_int(
-            args,
-            "markets_max_pages",
-            type_error="markets_max_pages must be an integer.",
-            range_error="markets_max_pages must be between 1 and 10000.",
-            min_value=1,
-            max_value=10000,
-        )
-        or 1000
-    )
-
-    series_tickers, series_pages = _page_series_tickers_for_category(
-        metadata_service,
-        category=category,
-        tags=tags,
-        limit=series_limit,
-        max_pages=series_max_pages,
-    )
-
-    markets: list[dict[str, Any]] = []
-    markets_pages_total = 0
-    for series_ticker in series_tickers:
-        open_markets, pages = _page_open_markets_for_series(
-            metadata_service,
-            series_ticker=series_ticker,
-            limit=markets_limit,
-            max_pages=markets_max_pages,
-        )
-        markets_pages_total += pages
-        markets.extend(
-            [
-                {
-                    "series_ticker": series_ticker,
-                    "ticker": m.ticker,
-                    "title": m.title,
-                    "subtitle": m.subtitle,
-                    "yes_sub_title": m.yes_sub_title,
-                    "no_sub_title": m.no_sub_title,
-                }
-                for m in open_markets
-            ]
-        )
-
-    payload: dict[str, Any] = {
-        "category": category,
-        "status": "open",
-        "series_count": len(series_tickers),
-        "series_pages": series_pages,
-        "markets": markets,
-        "count": len(markets),
-        "markets_pages_total": markets_pages_total,
-    }
-    if tags is not None:
-        payload["tags"] = tags
-    return payload
 
 
 def handle_get_open_market_titles_for_series(

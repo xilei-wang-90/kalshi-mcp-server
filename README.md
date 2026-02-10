@@ -70,18 +70,6 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
     - `max_pages` (int, 1-10000; defaults to 1000)
   - Forces `status=open` and returns only `ticker`, `title`, `subtitle`, `yes_sub_title`, `no_sub_title` for each market across all pages
   - No API key required
-- `get_open_market_titles_for_category`
-  - Pages Kalshi public endpoint: `GET /series`, then pages `GET /markets`
-  - Required arguments:
-    - `category` (string)
-  - Optional arguments:
-    - `tags` (string)
-    - `series_limit` (int, 1-1000; defaults to 1000)
-    - `series_max_pages` (int, 1-10000; defaults to 1000)
-    - `markets_limit` (int, 1-1000; defaults to 1000)
-    - `markets_max_pages` (int, 1-10000; defaults to 1000)
-  - Forces `status=open` and returns only `series_ticker`, `ticker`, `title`, `subtitle`, `yes_sub_title`, `no_sub_title` for each market across all pages
-  - No API key required
 
 ## Configuration
 - `KALSHI_API_BASE_URL`

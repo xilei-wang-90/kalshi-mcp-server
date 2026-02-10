@@ -178,6 +178,8 @@ class KalshiClientTests(unittest.TestCase):
                     "subtitle": "Trump Wins",
                     "status": "initialized",
                     "tick_size": 1,
+                    "floor_strike": 78999.99,
+                    "cap_strike": 79999.99,
                     "price_ranges": [{"start": "0", "end": "0.2", "step": "0.01"}],
                     "mve_selected_legs": [
                         {
@@ -201,7 +203,7 @@ class KalshiClientTests(unittest.TestCase):
         with patch(
             "kalshi_mcp.kalshi_client.request.urlopen",
             return_value=_FakeResponse(json.dumps(payload)),
-        ) as mocked_urlopen:
+        ) as mocked_urlopen, patch("kalshi_mcp.kalshi_client.LOGGER.warning") as mocked_warn:
             result = client.get_markets(
                 limit=5,
                 status="open",
@@ -216,11 +218,14 @@ class KalshiClientTests(unittest.TestCase):
         self.assertEqual("binary", first.market_type)
         self.assertEqual("initialized", first.status)
         self.assertEqual(1, first.tick_size)
+        self.assertEqual(78999.99, first.floor_strike)
+        self.assertEqual(79999.99, first.cap_strike)
         self.assertEqual("next-page", result.cursor)
         self.assertIsNotNone(first.price_ranges)
         self.assertEqual("0.01", first.price_ranges[0].step)
         self.assertIsNotNone(first.mve_selected_legs)
         self.assertEqual("yes", first.mve_selected_legs[0].side)
+        mocked_warn.assert_not_called()
 
         request_obj = mocked_urlopen.call_args.args[0]
         full_url = request_obj.get_full_url()
