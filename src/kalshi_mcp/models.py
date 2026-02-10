@@ -58,8 +58,9 @@ class Market:
     liquidity: int | None = None
     tick_size: int | None = None
     settlement_value: int | None = None
-    floor_strike: int | None = None
-    cap_strike: int | None = None
+    # Kalshi can return these as decimal values (e.g. 78999.99), so treat as floats.
+    floor_strike: float | None = None
+    cap_strike: float | None = None
 
     # Optional dollar-string representations (often null)
     yes_bid_dollars: str | None = None

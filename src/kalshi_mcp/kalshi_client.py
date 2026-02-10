@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import json
 import logging
+import random
+import time
 from typing import Any
 from urllib import parse
 from urllib import error, request
@@ -428,8 +430,8 @@ class KalshiClient:
             liquidity=self._optional_int(raw_market, "liquidity", index=index),
             tick_size=tick_size,
             settlement_value=self._optional_int(raw_market, "settlement_value", index=index),
-            floor_strike=self._optional_int(raw_market, "floor_strike", index=index),
-            cap_strike=self._optional_int(raw_market, "cap_strike", index=index),
+            floor_strike=self._optional_float(raw_market, "floor_strike", index=index),
+            cap_strike=self._optional_float(raw_market, "cap_strike", index=index),
             yes_bid_dollars=self._optional_str(raw_market, "yes_bid_dollars", index=index),
             yes_ask_dollars=self._optional_str(raw_market, "yes_ask_dollars", index=index),
             no_bid_dollars=self._optional_str(raw_market, "no_bid_dollars", index=index),
@@ -513,6 +515,20 @@ class KalshiClient:
             )
             return None
         return value
+
+    def _optional_float(self, raw: dict[str, Any], key: str, *, index: int) -> float | None:
+        value = raw.get(key)
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            LOGGER.warning(
+                "Ignoring unexpected '%s' type in markets[%s]: %s",
+                key,
+                index,
+                self._describe_value(value),
+            )
+            return None
+        return float(value)
 
     def _optional_bool(self, raw: dict[str, Any], key: str, *, index: int) -> bool | None:
         value = raw.get(key)
@@ -671,13 +687,58 @@ class KalshiClient:
             method="GET",
             headers={"Accept": "application/json"},
         )
-        try:
-            with request.urlopen(req, timeout=self._timeout_seconds) as response:
-                body = response.read().decode("utf-8")
-        except error.HTTPError as exc:
-            raise KalshiClientError(f"Kalshi API HTTP {exc.code} for {url}") from exc
-        except error.URLError as exc:
-            raise KalshiClientError(f"Kalshi API request failed for {url}: {exc.reason}") from exc
+        attempts = 0
+        max_attempts = 4
+        while True:
+            try:
+                with request.urlopen(req, timeout=self._timeout_seconds) as response:
+                    body = response.read().decode("utf-8")
+                break
+            except error.HTTPError as exc:
+                attempts += 1
+                retriable = exc.code in (429, 500, 502, 503, 504)
+                if retriable and attempts < max_attempts:
+                    retry_after = None
+                    try:
+                        retry_after = exc.headers.get("Retry-After")
+                    except Exception:
+                        retry_after = None
+
+                    backoff = 0.25 * (2 ** (attempts - 1)) + random.uniform(0, 0.25)
+                    if retry_after:
+                        try:
+                            backoff = max(backoff, float(retry_after))
+                        except ValueError:
+                            pass
+                    backoff = min(backoff, 5.0)
+
+                    LOGGER.warning(
+                        "Kalshi API HTTP %s for %s; retrying in %.2fs (attempt %s/%s)",
+                        exc.code,
+                        url,
+                        backoff,
+                        attempts,
+                        max_attempts,
+                    )
+                    time.sleep(backoff)
+                    continue
+
+                raise KalshiClientError(f"Kalshi API HTTP {exc.code} for {url}") from exc
+            except error.URLError as exc:
+                attempts += 1
+                if attempts < max_attempts:
+                    backoff = min(0.25 * (2 ** (attempts - 1)) + random.uniform(0, 0.25), 2.0)
+                    LOGGER.warning(
+                        "Kalshi API request failed for %s: %s; retrying in %.2fs (attempt %s/%s)",
+                        url,
+                        exc.reason,
+                        backoff,
+                        attempts,
+                        max_attempts,
+                    )
+                    time.sleep(backoff)
+                    continue
+                raise KalshiClientError(f"Kalshi API request failed for {url}: {exc.reason}") from exc
 
         try:
             decoded = json.loads(body)
