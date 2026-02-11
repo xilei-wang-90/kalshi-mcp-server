@@ -12,6 +12,11 @@ class StdioServerTests(unittest.TestCase):
             "get_tags_for_series_categories": lambda arguments: {
                 "tags_by_categories": {"Politics": ["Trump", "Biden"]}
             },
+            "get_balance": lambda arguments: {
+                "balance": 1000,
+                "portfolio_value": 2500,
+                "updated_ts": 1735000000123,
+            },
             "get_categories": lambda arguments: {
                 "categories": ["Politics"]
             },
@@ -118,6 +123,14 @@ class StdioServerTests(unittest.TestCase):
                     json.dumps(
                         {
                             "jsonrpc": "2.0",
+                            "id": 25,
+                            "method": "resources/read",
+                            "params": {"uri": "kalshi:///portfolio/balance"},
+                        }
+                    ),
+                    json.dumps(
+                        {
+                            "jsonrpc": "2.0",
                             "id": 3,
                             "method": "tools/call",
                             "params": {
@@ -169,7 +182,7 @@ class StdioServerTests(unittest.TestCase):
         server.run()
 
         lines = [line for line in stdout.getvalue().splitlines() if line.strip()]
-        self.assertEqual(11, len(lines))
+        self.assertEqual(12, len(lines))
 
         initialize_response = json.loads(lines[0])
         self.assertEqual("2.0", initialize_response["jsonrpc"])
@@ -200,7 +213,11 @@ class StdioServerTests(unittest.TestCase):
         self.assertEqual(20, resources_list_response["id"])
         resource_uris = [r["uri"] for r in resources_list_response["result"]["resources"]]
         self.assertEqual(
-            ["kalshi:///categories", "kalshi:///tags_by_categories"],
+            [
+                "kalshi:///categories",
+                "kalshi:///portfolio/balance",
+                "kalshi:///tags_by_categories",
+            ],
             resource_uris,
         )
 
@@ -238,7 +255,13 @@ class StdioServerTests(unittest.TestCase):
         self.assertIn('"tickers"', category_tickers_contents)
         self.assertIn("KXBTCUSD", category_tickers_contents)
 
-        tools_call_response = json.loads(lines[7])
+        portfolio_balance_read_response = json.loads(lines[7])
+        self.assertEqual(25, portfolio_balance_read_response["id"])
+        portfolio_balance_contents = portfolio_balance_read_response["result"]["contents"][0]["text"]
+        self.assertIn('"balance"', portfolio_balance_contents)
+        self.assertIn("2500", portfolio_balance_contents)
+
+        tools_call_response = json.loads(lines[8])
         self.assertEqual(3, tools_call_response["id"])
         self.assertEqual(False, tools_call_response["result"]["isError"])
         self.assertEqual(
@@ -246,7 +269,7 @@ class StdioServerTests(unittest.TestCase):
             tools_call_response["result"]["structuredContent"],
         )
 
-        tools_call_by_category_response = json.loads(lines[8])
+        tools_call_by_category_response = json.loads(lines[9])
         self.assertEqual(4, tools_call_by_category_response["id"])
         self.assertEqual(False, tools_call_by_category_response["result"]["isError"])
         self.assertEqual(
@@ -254,7 +277,7 @@ class StdioServerTests(unittest.TestCase):
             tools_call_by_category_response["result"]["structuredContent"],
         )
 
-        tools_call_series_response = json.loads(lines[9])
+        tools_call_series_response = json.loads(lines[10])
         self.assertEqual(5, tools_call_series_response["id"])
         self.assertEqual(False, tools_call_series_response["result"]["isError"])
         self.assertEqual(
@@ -262,7 +285,7 @@ class StdioServerTests(unittest.TestCase):
             tools_call_series_response["result"]["structuredContent"]["series"][0]["ticker"],
         )
 
-        tools_call_tickers_response = json.loads(lines[10])
+        tools_call_tickers_response = json.loads(lines[11])
         self.assertEqual(6, tools_call_tickers_response["id"])
         self.assertEqual(False, tools_call_tickers_response["result"]["isError"])
         self.assertEqual(
