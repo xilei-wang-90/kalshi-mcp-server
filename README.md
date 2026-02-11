@@ -1,10 +1,13 @@
 # kalshi-mcp-server
 An mcp server that allows AI to operate on the prediction market, Kalshi
 
-## Implemented Public Tool
+## Implemented Tools
 - `get_tags_for_series_categories`
   - Calls Kalshi public endpoint: `GET /search/tags_by_categories`
   - No API key required
+- `get_balance`
+  - Calls Kalshi private endpoint: `GET /portfolio/balance`
+  - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
 - `get_categories`
   - Calls Kalshi public endpoint: `GET /search/tags_by_categories`
   - Returns only the category names
@@ -76,6 +79,14 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
   - Default: `https://api.elections.kalshi.com/trade-api/v2`
 - `KALSHI_TIMEOUT_SECONDS`
   - Default: `10`
+- `KALSHI_API_KEY_ID`
+  - Required for authenticated/private endpoints (for example `get_balance`)
+- `KALSHI_API_KEY_PATH`
+  - Required for authenticated/private endpoints
+  - Path to your Kalshi API private key PEM file
+- `.env`
+  - `load_settings()` reads a local `.env` file from the repo root and loads variables
+    when they are not already set in the environment
 
 ## Run as MCP stdio server
 - Command (installed/editable):

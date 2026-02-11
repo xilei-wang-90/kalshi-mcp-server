@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import base64
 import json
 import logging
 import random
@@ -14,6 +15,7 @@ from .models import (
     Market,
     MarketsList,
     MveSelectedLeg,
+    PortfolioBalance,
     PriceRange,
     Series,
     SeriesList,
@@ -33,6 +35,9 @@ class KalshiClient:
     def __init__(self, settings: Settings) -> None:
         self._base_url = settings.base_url
         self._timeout_seconds = settings.timeout_seconds
+        self._api_key_id = settings.api_key_id
+        self._api_key_path = settings.api_key_path
+        self._cached_private_key: Any | None = None
 
     def get_tags_for_series_categories(self) -> TagsByCategories:
         """Return tags grouped by series categories."""
@@ -55,6 +60,21 @@ class KalshiClient:
                 normalized[category] = [item for item in values if isinstance(item, str)]
 
         return TagsByCategories(tags_by_categories=normalized)
+
+    def get_balance(self) -> PortfolioBalance:
+        """Return authenticated user account balance."""
+        payload = self._get_json("/portfolio/balance", authenticated=True)
+
+        balance = self._require_int_field(payload, "balance", endpoint="/portfolio/balance")
+        portfolio_value = self._require_int_field(
+            payload, "portfolio_value", endpoint="/portfolio/balance"
+        )
+        updated_ts = self._require_int_field(payload, "updated_ts", endpoint="/portfolio/balance")
+        return PortfolioBalance(
+            balance=balance,
+            portfolio_value=portfolio_value,
+            updated_ts=updated_ts,
+        )
 
     def get_series_list(
         self,
@@ -680,12 +700,100 @@ class KalshiClient:
             preview = f"{preview[:117]}..."
         return f"type={type(value).__name__} value={preview}"
 
-    def _get_json(self, path: str) -> dict[str, Any]:
+    def _require_int_field(self, payload: dict[str, Any], field: str, *, endpoint: str) -> int:
+        value = payload.get(field)
+        if isinstance(value, bool) or not isinstance(value, int):
+            LOGGER.error(
+                "Unexpected %s payload: expected integer at '%s', got=%s keys=%s",
+                endpoint,
+                field,
+                self._describe_value(value),
+                sorted(payload.keys()),
+            )
+            raise KalshiClientError(
+                f"Unexpected response shape from Kalshi API: missing integer '{field}'."
+            )
+        return value
+
+    def _require_auth_headers(self, method: str, path: str) -> dict[str, str]:
+        if not self._api_key_id or not self._api_key_path:
+            raise KalshiClientError(
+                "Authenticated Kalshi endpoint requires KALSHI_API_KEY_ID and "
+                "KALSHI_API_KEY_PATH."
+            )
+
+        timestamp_ms = str(int(time.time() * 1000))
+        message = f"{timestamp_ms}{method.upper()}{self._path_for_signing(path)}"
+        signature = self._sign_message(message)
+
+        return {
+            "KALSHI-ACCESS-KEY": self._api_key_id,
+            "KALSHI-ACCESS-SIGNATURE": signature,
+            "KALSHI-ACCESS-TIMESTAMP": timestamp_ms,
+        }
+
+    def _path_for_signing(self, path: str) -> str:
+        request_path = path if path.startswith("/") else f"/{path}"
+        request_path = request_path.split("?", 1)[0]
+
+        parsed_base = parse.urlparse(self._base_url)
+        base_path = parsed_base.path.rstrip("/")
+        if base_path:
+            return f"{base_path}{request_path}"
+        return request_path
+
+    def _sign_message(self, message: str) -> str:
+        try:
+            from cryptography.hazmat.primitives import hashes
+            from cryptography.hazmat.primitives import serialization
+            from cryptography.hazmat.primitives.asymmetric import padding
+        except Exception as exc:
+            raise KalshiClientError(
+                "Kalshi authenticated endpoints require the 'cryptography' package."
+            ) from exc
+
+        if self._cached_private_key is None:
+            try:
+                with open(self._api_key_path, "rb") as key_file:
+                    key_bytes = key_file.read()
+            except OSError as exc:
+                raise KalshiClientError(
+                    f"Unable to read API key file at {self._api_key_path}: {exc}"
+                ) from exc
+
+            try:
+                self._cached_private_key = serialization.load_pem_private_key(
+                    key_bytes,
+                    password=None,
+                )
+            except Exception as exc:
+                raise KalshiClientError(
+                    f"Unable to load private key from {self._api_key_path}."
+                ) from exc
+
+        try:
+            signature = self._cached_private_key.sign(
+                message.encode("utf-8"),
+                padding.PSS(
+                    mgf=padding.MGF1(hashes.SHA256()),
+                    salt_length=padding.PSS.DIGEST_LENGTH,
+                ),
+                hashes.SHA256(),
+            )
+        except Exception as exc:
+            raise KalshiClientError("Unable to sign Kalshi API request.") from exc
+
+        return base64.b64encode(signature).decode("ascii")
+
+    def _get_json(self, path: str, *, authenticated: bool = False) -> dict[str, Any]:
         url = f"{self._base_url}{path}"
+        headers = {"Accept": "application/json"}
+        if authenticated:
+            headers.update(self._require_auth_headers("GET", path))
         req = request.Request(
             url=url,
             method="GET",
-            headers={"Accept": "application/json"},
+            headers=headers,
         )
         attempts = 0
         max_attempts = 4

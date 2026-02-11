@@ -123,6 +123,15 @@ class TagsByCategories:
 
 
 @dataclass
+class PortfolioBalance:
+    """Member balance and portfolio value (both in cents)."""
+
+    balance: int
+    portfolio_value: int
+    updated_ts: int
+
+
+@dataclass
 class SettlementSource:
     name: str
     url: str

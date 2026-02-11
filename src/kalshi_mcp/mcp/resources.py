@@ -57,6 +57,11 @@ class ResourceRegistry:
                 description="All Kalshi series categories (derived from tags_by_categories).",
             ),
             ResourceDescriptor(
+                uri="kalshi:///portfolio/balance",
+                name="Kalshi Portfolio Balance",
+                description="Authenticated account balance and portfolio value.",
+            ),
+            ResourceDescriptor(
                 uri="kalshi:///tags_by_categories",
                 name="Kalshi Tags By Categories",
                 description="Kalshi tags grouped by series category.",
@@ -119,6 +124,9 @@ class ResourceRegistry:
     def _route(self, path: str, query: str) -> dict[str, Any]:
         if path == "/categories":
             return self._tool_registry.call_tool("get_categories", {})
+
+        if path == "/portfolio/balance":
+            return self._tool_registry.call_tool("get_balance", {})
 
         if path == "/tags_by_categories":
             return self._tool_registry.call_tool("get_tags_for_series_categories", {})

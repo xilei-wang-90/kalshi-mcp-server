@@ -1,6 +1,7 @@
 import unittest
 
 from kalshi_mcp.mcp.handlers import (
+    handle_get_balance,
     handle_get_series_list,
     handle_get_series_tickers_for_category,
     handle_get_categories,
@@ -10,7 +11,15 @@ from kalshi_mcp.mcp.handlers import (
     handle_get_open_markets_for_series,
     handle_get_open_market_titles_for_series,
 )
-from kalshi_mcp.models import Market, MarketsList, Series, SeriesList, SettlementSource, TagsByCategories
+from kalshi_mcp.models import (
+    Market,
+    MarketsList,
+    PortfolioBalance,
+    Series,
+    SeriesList,
+    SettlementSource,
+    TagsByCategories,
+)
 
 
 class _FakeMetadataService:
@@ -164,6 +173,15 @@ class _FakeMetadataService:
             cursor="next-page",
         )
 
+
+class _FakePortfolioService:
+    def get_balance(self) -> PortfolioBalance:
+        return PortfolioBalance(
+            balance=12345,
+            portfolio_value=23456,
+            updated_ts=1731000000000,
+        )
+
 class _PagingMarketsMetadataService(_FakeMetadataService):
     def get_markets(
         self,
@@ -243,6 +261,21 @@ class HandlersTests(unittest.TestCase):
     def test_get_tags_for_series_categories_rejects_arguments(self) -> None:
         with self.assertRaises(ValueError):
             handle_get_tags_for_series_categories(_FakeMetadataService(), {"unexpected": True})
+
+    def test_get_balance_handler(self) -> None:
+        result = handle_get_balance(_FakePortfolioService(), None)
+        self.assertEqual(
+            {
+                "balance": 12345,
+                "portfolio_value": 23456,
+                "updated_ts": 1731000000000,
+            },
+            result,
+        )
+
+    def test_get_balance_rejects_arguments(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_balance(_FakePortfolioService(), {"unexpected": True})
 
     def test_get_categories_handler(self) -> None:
         result = handle_get_categories(_FakeMetadataService(), None)

@@ -1,7 +1,7 @@
 """Application-level use cases."""
 
 from .kalshi_client import KalshiClient
-from .models import MarketsList, SeriesList, TagsByCategories
+from .models import MarketsList, PortfolioBalance, SeriesList, TagsByCategories
 
 
 class MetadataService:
@@ -78,3 +78,11 @@ class MetadataService:
             min_settled_ts=min_settled_ts,
             max_settled_ts=max_settled_ts,
         )
+
+
+class PortfolioService:
+    def __init__(self, client: KalshiClient) -> None:
+        self._client = client
+
+    def get_balance(self) -> PortfolioBalance:
+        return self._client.get_balance()

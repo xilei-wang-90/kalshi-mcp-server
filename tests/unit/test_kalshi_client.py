@@ -252,6 +252,76 @@ class KalshiClientTests(unittest.TestCase):
 
         self.assertTrue(any("expected list at 'markets'" in message for message in captured.output))
 
+    def test_get_balance_success(self) -> None:
+        payload = {
+            "balance": 1000,
+            "portfolio_value": 2500,
+            "updated_ts": 1735000000123,
+        }
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps(payload)),
+        ) as mocked_urlopen, patch.object(
+            client,
+            "_sign_message",
+            return_value="signed-message",
+        ) as mocked_sign, patch(
+            "kalshi_mcp.kalshi_client.time.time",
+            return_value=1700000000.123,
+        ):
+            result = client.get_balance()
+
+        self.assertEqual(1000, result.balance)
+        self.assertEqual(2500, result.portfolio_value)
+        self.assertEqual(1735000000123, result.updated_ts)
+        mocked_sign.assert_called_once_with("1700000000123GET/trade-api/v2/portfolio/balance")
+
+        request_obj = mocked_urlopen.call_args.args[0]
+        header_items = {key.lower(): value for key, value in request_obj.header_items()}
+        self.assertEqual("application/json", header_items["accept"])
+        self.assertEqual("test-key-id", header_items["kalshi-access-key"])
+        self.assertEqual("signed-message", header_items["kalshi-access-signature"])
+        self.assertEqual("1700000000123", header_items["kalshi-access-timestamp"])
+
+    def test_get_balance_without_api_credentials_raises(self) -> None:
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+        )
+        client = KalshiClient(settings)
+
+        with self.assertRaises(KalshiClientError):
+            client.get_balance()
+
+    def test_get_balance_missing_fields_raises_and_logs(self) -> None:
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps({"foo": "bar"})),
+        ), patch.object(client, "_sign_message", return_value="signed"):
+            with self.assertLogs("kalshi_mcp.kalshi_client", level="ERROR") as captured:
+                with self.assertRaises(KalshiClientError):
+                    client.get_balance()
+
+        self.assertTrue(
+            any("expected integer at 'balance'" in message for message in captured.output)
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

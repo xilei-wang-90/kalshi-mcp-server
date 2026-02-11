@@ -11,6 +11,7 @@ from .kalshi_client import KalshiClient
 from .mcp.handlers import ToolHandler, build_tool_handlers
 from .mcp.resources import ResourceRegistry
 from .mcp.schema import (
+    GET_BALANCE_TOOL,
     GET_CATEGORIES_TOOL,
     GET_MARKETS_TOOL,
     GET_OPEN_MARKETS_FOR_SERIES_TOOL,
@@ -20,7 +21,7 @@ from .mcp.schema import (
     GET_TAGS_FOR_SERIES_CATEGORIES_TOOL,
     GET_TAGS_FOR_SERIES_CATEGORY_TOOL,
 )
-from .services import MetadataService
+from .services import MetadataService, PortfolioService
 from .settings import Settings, load_settings
 
 JSONRPC_VERSION = "2.0"
@@ -34,6 +35,7 @@ class ToolRegistry:
     def list_tools(self) -> list[dict[str, Any]]:
         return [
             GET_TAGS_FOR_SERIES_CATEGORIES_TOOL,
+            GET_BALANCE_TOOL,
             GET_CATEGORIES_TOOL,
             GET_TAGS_FOR_SERIES_CATEGORY_TOOL,
             GET_SERIES_LIST_TOOL,
@@ -54,7 +56,8 @@ def create_tool_registry(settings: Settings | None = None) -> ToolRegistry:
     resolved_settings = settings or load_settings()
     client = KalshiClient(resolved_settings)
     metadata_service = MetadataService(client)
-    handlers = build_tool_handlers(metadata_service)
+    portfolio_service = PortfolioService(client)
+    handlers = build_tool_handlers(metadata_service, portfolio_service)
     return ToolRegistry(handlers)
 
 

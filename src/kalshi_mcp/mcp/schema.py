@@ -13,6 +13,19 @@ GET_TAGS_FOR_SERIES_CATEGORIES_TOOL = {
     },
 }
 
+GET_BALANCE_TOOL = {
+    "name": "get_balance",
+    "description": (
+        "Get your Kalshi portfolio balance and portfolio value. "
+        "Uses GET /portfolio/balance (requires API key authentication)."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False,
+    },
+}
+
 GET_CATEGORIES_TOOL = {
     "name": "get_categories",
     "description": (
