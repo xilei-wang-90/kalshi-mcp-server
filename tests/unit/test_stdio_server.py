@@ -184,6 +184,7 @@ class StdioServerTests(unittest.TestCase):
         self.assertEqual(
             [
                 "get_tags_for_series_categories",
+                "get_balance",
                 "get_categories",
                 "get_tags_for_series_category",
                 "get_series_list",

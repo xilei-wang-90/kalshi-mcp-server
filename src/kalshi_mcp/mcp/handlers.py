@@ -8,13 +8,14 @@ from ..models import (
     Market,
     MarketsList,
     MveSelectedLeg,
+    PortfolioBalance,
     PriceRange,
     Series,
     SeriesList,
     SettlementSource,
     TagsByCategories,
 )
-from ..services import MetadataService
+from ..services import MetadataService, PortfolioService
 
 ToolHandler = Callable[[dict[str, Any] | None], dict[str, Any]]
 
@@ -85,10 +86,15 @@ def _parse_bool(arguments: dict[str, Any], key: str, default: bool, *, type_erro
     return value
 
 
-def build_tool_handlers(metadata_service: MetadataService) -> dict[str, ToolHandler]:
+def build_tool_handlers(
+    metadata_service: MetadataService, portfolio_service: PortfolioService
+) -> dict[str, ToolHandler]:
     return {
         "get_tags_for_series_categories": lambda arguments: (
             handle_get_tags_for_series_categories(metadata_service, arguments)
+        ),
+        "get_balance": lambda arguments: (
+            handle_get_balance(portfolio_service, arguments)
         ),
         "get_categories": lambda arguments: (
             handle_get_categories(metadata_service, arguments)
@@ -126,6 +132,24 @@ def handle_get_tags_for_series_categories(
 
 def _serialize_tags(tags: TagsByCategories) -> dict[str, Any]:
     return {"tags_by_categories": tags.tags_by_categories}
+
+
+def handle_get_balance(
+    portfolio_service: PortfolioService, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    if arguments:
+        raise ValueError("get_balance does not accept arguments.")
+
+    balance = portfolio_service.get_balance()
+    return _serialize_balance(balance)
+
+
+def _serialize_balance(balance: PortfolioBalance) -> dict[str, Any]:
+    return {
+        "balance": balance.balance,
+        "portfolio_value": balance.portfolio_value,
+        "updated_ts": balance.updated_ts,
+    }
 
 
 def handle_get_categories(
