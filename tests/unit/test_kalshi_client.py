@@ -322,6 +322,99 @@ class KalshiClientTests(unittest.TestCase):
             any("expected integer at 'balance'" in message for message in captured.output)
         )
 
+    def test_get_subaccount_balances_success(self) -> None:
+        payload = {
+            "subaccount_balances": [
+                {
+                    "subaccount_number": 0,
+                    "balance": "100.5600",
+                    "updated_ts": 1735000000123,
+                },
+                {
+                    "subaccount_number": 1,
+                    "balance": "0.0000",
+                    "updated_ts": 1735000000456,
+                },
+            ]
+        }
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps(payload)),
+        ) as mocked_urlopen, patch.object(
+            client,
+            "_sign_message",
+            return_value="signed-message",
+        ) as mocked_sign, patch(
+            "kalshi_mcp.kalshi_client.time.time",
+            return_value=1700000000.123,
+        ):
+            result = client.get_subaccount_balances()
+
+        self.assertEqual(2, len(result.subaccount_balances))
+        first = result.subaccount_balances[0]
+        self.assertEqual(0, first.subaccount_number)
+        self.assertEqual("100.5600", first.balance)
+        self.assertEqual(1735000000123, first.updated_ts)
+        second = result.subaccount_balances[1]
+        self.assertEqual(1, second.subaccount_number)
+        self.assertEqual("0.0000", second.balance)
+        self.assertEqual(1735000000456, second.updated_ts)
+
+        mocked_sign.assert_called_once_with(
+            "1700000000123GET/trade-api/v2/portfolio/subaccounts/balances"
+        )
+
+        request_obj = mocked_urlopen.call_args.args[0]
+        full_url = request_obj.get_full_url()
+        self.assertTrue(full_url.endswith("/portfolio/subaccounts/balances"))
+        header_items = {key.lower(): value for key, value in request_obj.header_items()}
+        self.assertEqual("application/json", header_items["accept"])
+        self.assertEqual("test-key-id", header_items["kalshi-access-key"])
+        self.assertEqual("signed-message", header_items["kalshi-access-signature"])
+        self.assertEqual("1700000000123", header_items["kalshi-access-timestamp"])
+
+    def test_get_subaccount_balances_without_api_credentials_raises(self) -> None:
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+        )
+        client = KalshiClient(settings)
+
+        with self.assertRaises(KalshiClientError):
+            client.get_subaccount_balances()
+
+    def test_get_subaccount_balances_missing_payload_key_raises_and_logs(self) -> None:
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps({"foo": "bar"})),
+        ), patch.object(client, "_sign_message", return_value="signed"):
+            with self.assertLogs("kalshi_mcp.kalshi_client", level="ERROR") as captured:
+                with self.assertRaises(KalshiClientError):
+                    client.get_subaccount_balances()
+
+        self.assertTrue(
+            any(
+                "expected list at 'subaccount_balances'" in message
+                for message in captured.output
+            )
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

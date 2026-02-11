@@ -263,6 +263,19 @@ GET_OPEN_MARKET_TITLES_FOR_SERIES_TOOL = {
     },
 }
 
+GET_SUBACCOUNT_BALANCES_TOOL = {
+    "name": "get_subaccount_balances",
+    "description": (
+        "Get balances for all subaccounts in your Kalshi portfolio. "
+        "Uses GET /portfolio/subaccounts/balances (requires API key authentication)."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False,
+    },
+}
+
 GET_SERIES_TICKERS_FOR_CATEGORY_TOOL = {
     "name": "get_series_tickers_for_category",
     "description": (

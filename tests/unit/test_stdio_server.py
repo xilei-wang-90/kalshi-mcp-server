@@ -198,6 +198,7 @@ class StdioServerTests(unittest.TestCase):
             [
                 "get_tags_for_series_categories",
                 "get_balance",
+                "get_subaccount_balances",
                 "get_categories",
                 "get_tags_for_series_category",
                 "get_series_list",
@@ -216,6 +217,7 @@ class StdioServerTests(unittest.TestCase):
             [
                 "kalshi:///categories",
                 "kalshi:///portfolio/balance",
+                "kalshi:///portfolio/subaccount_balances",
                 "kalshi:///tags_by_categories",
             ],
             resource_uris,

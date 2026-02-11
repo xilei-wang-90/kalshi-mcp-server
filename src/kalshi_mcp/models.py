@@ -132,6 +132,18 @@ class PortfolioBalance:
 
 
 @dataclass
+class SubaccountBalance:
+    subaccount_number: int
+    balance: str
+    updated_ts: int
+
+
+@dataclass
+class SubaccountBalancesList:
+    subaccount_balances: list[SubaccountBalance]
+
+
+@dataclass
 class SettlementSource:
     name: str
     url: str

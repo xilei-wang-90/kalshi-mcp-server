@@ -5,6 +5,7 @@ from kalshi_mcp.mcp.handlers import (
     handle_get_series_list,
     handle_get_series_tickers_for_category,
     handle_get_categories,
+    handle_get_subaccount_balances,
     handle_get_tags_for_series_categories,
     handle_get_tags_for_series_category,
     handle_get_markets,
@@ -18,6 +19,8 @@ from kalshi_mcp.models import (
     Series,
     SeriesList,
     SettlementSource,
+    SubaccountBalance,
+    SubaccountBalancesList,
     TagsByCategories,
 )
 
@@ -182,6 +185,22 @@ class _FakePortfolioService:
             updated_ts=1731000000000,
         )
 
+    def get_subaccount_balances(self) -> SubaccountBalancesList:
+        return SubaccountBalancesList(
+            subaccount_balances=[
+                SubaccountBalance(
+                    subaccount_number=1,
+                    balance="100.50",
+                    updated_ts=1731000000000,
+                ),
+                SubaccountBalance(
+                    subaccount_number=2,
+                    balance="200.75",
+                    updated_ts=1731000001000,
+                ),
+            ]
+        )
+
 class _PagingMarketsMetadataService(_FakeMetadataService):
     def get_markets(
         self,
@@ -276,6 +295,30 @@ class HandlersTests(unittest.TestCase):
     def test_get_balance_rejects_arguments(self) -> None:
         with self.assertRaises(ValueError):
             handle_get_balance(_FakePortfolioService(), {"unexpected": True})
+
+    def test_get_subaccount_balances_handler(self) -> None:
+        result = handle_get_subaccount_balances(_FakePortfolioService(), None)
+        self.assertEqual(
+            {
+                "subaccount_balances": [
+                    {
+                        "subaccount_number": 1,
+                        "balance": "100.50",
+                        "updated_ts": 1731000000000,
+                    },
+                    {
+                        "subaccount_number": 2,
+                        "balance": "200.75",
+                        "updated_ts": 1731000001000,
+                    },
+                ],
+            },
+            result,
+        )
+
+    def test_get_subaccount_balances_rejects_arguments(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_subaccount_balances(_FakePortfolioService(), {"unexpected": True})
 
     def test_get_categories_handler(self) -> None:
         result = handle_get_categories(_FakeMetadataService(), None)

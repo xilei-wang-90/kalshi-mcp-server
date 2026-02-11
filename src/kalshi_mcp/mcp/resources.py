@@ -62,6 +62,11 @@ class ResourceRegistry:
                 description="Authenticated account balance and portfolio value.",
             ),
             ResourceDescriptor(
+                uri="kalshi:///portfolio/subaccount_balances",
+                name="Kalshi Subaccount Balances",
+                description="Authenticated subaccount balances.",
+            ),
+            ResourceDescriptor(
                 uri="kalshi:///tags_by_categories",
                 name="Kalshi Tags By Categories",
                 description="Kalshi tags grouped by series category.",
@@ -127,6 +132,9 @@ class ResourceRegistry:
 
         if path == "/portfolio/balance":
             return self._tool_registry.call_tool("get_balance", {})
+
+        if path == "/portfolio/subaccount_balances":
+            return self._tool_registry.call_tool("get_subaccount_balances", {})
 
         if path == "/tags_by_categories":
             return self._tool_registry.call_tool("get_tags_for_series_categories", {})

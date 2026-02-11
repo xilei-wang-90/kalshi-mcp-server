@@ -13,6 +13,8 @@ from ..models import (
     Series,
     SeriesList,
     SettlementSource,
+    SubaccountBalance,
+    SubaccountBalancesList,
     TagsByCategories,
 )
 from ..services import MetadataService, PortfolioService
@@ -96,6 +98,9 @@ def build_tool_handlers(
         "get_balance": lambda arguments: (
             handle_get_balance(portfolio_service, arguments)
         ),
+        "get_subaccount_balances": lambda arguments: (
+            handle_get_subaccount_balances(portfolio_service, arguments)
+        ),
         "get_categories": lambda arguments: (
             handle_get_categories(metadata_service, arguments)
         ),
@@ -149,6 +154,32 @@ def _serialize_balance(balance: PortfolioBalance) -> dict[str, Any]:
         "balance": balance.balance,
         "portfolio_value": balance.portfolio_value,
         "updated_ts": balance.updated_ts,
+    }
+
+
+def handle_get_subaccount_balances(
+    portfolio_service: PortfolioService, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    if arguments:
+        raise ValueError("get_subaccount_balances does not accept arguments.")
+
+    result = portfolio_service.get_subaccount_balances()
+    return _serialize_subaccount_balances(result)
+
+
+def _serialize_subaccount_balances(result: SubaccountBalancesList) -> dict[str, Any]:
+    return {
+        "subaccount_balances": [
+            _serialize_subaccount_balance(item) for item in result.subaccount_balances
+        ],
+    }
+
+
+def _serialize_subaccount_balance(item: SubaccountBalance) -> dict[str, Any]:
+    return {
+        "subaccount_number": item.subaccount_number,
+        "balance": item.balance,
+        "updated_ts": item.updated_ts,
     }
 
 

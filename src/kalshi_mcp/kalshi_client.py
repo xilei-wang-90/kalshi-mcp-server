@@ -20,6 +20,8 @@ from .models import (
     Series,
     SeriesList,
     SettlementSource,
+    SubaccountBalance,
+    SubaccountBalancesList,
     TagsByCategories,
 )
 from .settings import Settings
@@ -75,6 +77,71 @@ class KalshiClient:
             portfolio_value=portfolio_value,
             updated_ts=updated_ts,
         )
+
+    def get_subaccount_balances(self) -> SubaccountBalancesList:
+        """Return balances for all subaccounts."""
+        endpoint = "/portfolio/subaccounts/balances"
+        payload = self._get_json(endpoint, authenticated=True)
+
+        raw_balances = payload.get("subaccount_balances")
+        if not isinstance(raw_balances, list):
+            LOGGER.error(
+                "Unexpected %s payload: expected list at 'subaccount_balances', got=%s keys=%s",
+                endpoint,
+                self._describe_value(raw_balances),
+                sorted(payload.keys()),
+            )
+            raise KalshiClientError(
+                "Unexpected response shape from Kalshi API: "
+                "missing 'subaccount_balances' array."
+            )
+
+        parsed: list[SubaccountBalance] = []
+        for index, item in enumerate(raw_balances):
+            if not isinstance(item, dict):
+                LOGGER.warning(
+                    "Skipping subaccount_balances[%s]: expected object, got %s",
+                    index,
+                    self._describe_value(item),
+                )
+                continue
+
+            subaccount_number = item.get("subaccount_number")
+            if isinstance(subaccount_number, bool) or not isinstance(subaccount_number, int):
+                LOGGER.warning(
+                    "Skipping subaccount_balances[%s]: expected 'subaccount_number' as int, got %s",
+                    index,
+                    self._describe_value(subaccount_number),
+                )
+                continue
+
+            balance = item.get("balance")
+            if not isinstance(balance, str):
+                LOGGER.warning(
+                    "Skipping subaccount_balances[%s]: expected 'balance' as string, got %s",
+                    index,
+                    self._describe_value(balance),
+                )
+                continue
+
+            updated_ts = item.get("updated_ts")
+            if isinstance(updated_ts, bool) or not isinstance(updated_ts, int):
+                LOGGER.warning(
+                    "Skipping subaccount_balances[%s]: expected 'updated_ts' as int, got %s",
+                    index,
+                    self._describe_value(updated_ts),
+                )
+                continue
+
+            parsed.append(
+                SubaccountBalance(
+                    subaccount_number=subaccount_number,
+                    balance=balance,
+                    updated_ts=updated_ts,
+                )
+            )
+
+        return SubaccountBalancesList(subaccount_balances=parsed)
 
     def get_series_list(
         self,
