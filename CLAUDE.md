@@ -42,7 +42,7 @@ src/kalshi_mcp/
 
 ## Adding a New Tool
 
-To add a new tool, modify these files in order:
+To add a new tool, modify these files in order but do not modify existing model unless it is only an extension, do not break existing tools:
 
 ### 1. Define the Schema (`mcp/schema.py`)
 
