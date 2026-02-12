@@ -10,6 +10,8 @@ from ..models import (
     MarketsList,
     MveSelectedLeg,
     PortfolioBalance,
+    PortfolioOrder,
+    PortfolioOrdersList,
     PriceRange,
     Series,
     SeriesList,
@@ -125,6 +127,9 @@ def build_tool_handlers(
         ),
         "create_subaccount": lambda arguments: (
             handle_create_subaccount(portfolio_service, arguments)
+        ),
+        "get_orders": lambda arguments: (
+            handle_get_orders(portfolio_service, arguments)
         ),
     }
 
@@ -820,6 +825,145 @@ def _serialize_mve_selected_leg(item: MveSelectedLeg) -> dict[str, Any]:
         "side": item.side,
     }
     _maybe(payload, "yes_settlement_value_dollars", item.yes_settlement_value_dollars)
+    return payload
+
+
+def handle_get_orders(
+    portfolio_service: PortfolioService, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    ticker: str | None = None
+    event_ticker: str | None = None
+    min_ts: int | None = None
+    max_ts: int | None = None
+    status: str | None = None
+    limit: int | None = None
+    cursor: str | None = None
+    subaccount: int | None = None
+
+    if arguments is not None:
+        ticker = _parse_optional_str(
+            arguments,
+            "ticker",
+            type_error="ticker must be a string.",
+            empty_error="ticker must be a non-empty string.",
+        )
+        event_ticker = _parse_optional_str(
+            arguments,
+            "event_ticker",
+            type_error="event_ticker must be a string.",
+            empty_error="event_ticker must be a non-empty string.",
+        )
+        cursor = _parse_optional_str(
+            arguments,
+            "cursor",
+            type_error="cursor must be a string.",
+            empty_error="cursor must be a non-empty string.",
+        )
+
+        status = _parse_optional_str(
+            arguments,
+            "status",
+            type_error="status must be a string.",
+            empty_error="status must be a non-empty string.",
+        )
+        if status is not None:
+            allowed_status = {"resting", "canceled", "executed"}
+            if status not in allowed_status:
+                raise ValueError("status must be one of resting, canceled, executed.")
+
+        ts_max = 10_000_000_000
+        min_ts = _parse_optional_int(
+            arguments,
+            "min_ts",
+            type_error="min_ts must be an integer.",
+            range_error="min_ts must be a non-negative integer.",
+            min_value=0,
+            max_value=ts_max,
+        )
+        max_ts = _parse_optional_int(
+            arguments,
+            "max_ts",
+            type_error="max_ts must be an integer.",
+            range_error="max_ts must be a non-negative integer.",
+            min_value=0,
+            max_value=ts_max,
+        )
+        limit = _parse_optional_int(
+            arguments,
+            "limit",
+            type_error="limit must be an integer.",
+            range_error="limit must be between 1 and 200.",
+            min_value=1,
+            max_value=200,
+        )
+        subaccount = _parse_optional_int(
+            arguments,
+            "subaccount",
+            type_error="subaccount must be an integer.",
+            range_error="subaccount must be between 0 and 32.",
+            min_value=0,
+            max_value=32,
+        )
+
+    orders_list = portfolio_service.get_orders(
+        ticker=ticker,
+        event_ticker=event_ticker,
+        min_ts=min_ts,
+        max_ts=max_ts,
+        status=status,
+        limit=limit,
+        cursor=cursor,
+        subaccount=subaccount,
+    )
+    return _serialize_orders_list(orders_list)
+
+
+def _serialize_orders_list(orders_list: PortfolioOrdersList) -> dict[str, Any]:
+    serialized: dict[str, Any] = {"orders": [_serialize_order(item) for item in orders_list.orders]}
+    if orders_list.cursor is not None:
+        serialized["cursor"] = orders_list.cursor
+    return serialized
+
+
+def _serialize_order(order: PortfolioOrder) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "order_id": order.order_id,
+        "user_id": order.user_id,
+        "client_order_id": order.client_order_id,
+        "ticker": order.ticker,
+        "status": order.status,
+        "side": order.side,
+        "action": order.action,
+        "type": order.type,
+        "yes_price": order.yes_price,
+        "no_price": order.no_price,
+        "fill_count": order.fill_count,
+        "remaining_count": order.remaining_count,
+        "initial_count": order.initial_count,
+        "taker_fees": order.taker_fees,
+        "maker_fees": order.maker_fees,
+        "taker_fill_cost": order.taker_fill_cost,
+        "maker_fill_cost": order.maker_fill_cost,
+        "queue_position": order.queue_position,
+        "yes_price_dollars": order.yes_price_dollars,
+        "no_price_dollars": order.no_price_dollars,
+        "fill_count_fp": order.fill_count_fp,
+        "remaining_count_fp": order.remaining_count_fp,
+        "initial_count_fp": order.initial_count_fp,
+        "taker_fill_cost_dollars": order.taker_fill_cost_dollars,
+        "maker_fill_cost_dollars": order.maker_fill_cost_dollars,
+    }
+
+    _maybe(payload, "taker_fees_dollars", order.taker_fees_dollars)
+    _maybe(payload, "maker_fees_dollars", order.maker_fees_dollars)
+    _maybe(payload, "expiration_time", order.expiration_time)
+    _maybe(payload, "created_time", order.created_time)
+    _maybe(payload, "last_update_time", order.last_update_time)
+    _maybe(payload, "self_trade_prevention_type", order.self_trade_prevention_type)
+    _maybe(payload, "order_group_id", order.order_group_id)
+    _maybe(payload, "cancel_order_on_pause", order.cancel_order_on_pause)
+    _maybe(payload, "subaccount_number", order.subaccount_number)
+
     return payload
 
 

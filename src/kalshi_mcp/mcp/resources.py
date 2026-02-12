@@ -103,6 +103,13 @@ class ResourceRegistry:
                 name="Kalshi Series List",
                 description="Market series list, optionally filtered by category/tags and including metadata/volume.",
             ),
+            ResourceTemplateDescriptor(
+                uriTemplate=(
+                    "kalshi:///portfolio/orders{?ticker,event_ticker,status,min_ts,max_ts,limit,cursor,subaccount}"
+                ),
+                name="Kalshi Portfolio Orders",
+                description="Authenticated portfolio orders, optionally filtered.",
+            ),
         ]
         return [item.to_dict() for item in templates]
 
@@ -181,6 +188,27 @@ class ResourceRegistry:
             if "include_volume" in q and q["include_volume"]:
                 args["include_volume"] = _parse_bool(q["include_volume"][0])
             return self._tool_registry.call_tool("get_series_list", args)
+
+        if path == "/portfolio/orders":
+            args: dict[str, Any] = {}
+            q = parse.parse_qs(query, keep_blank_values=False)
+            if "ticker" in q and q["ticker"]:
+                args["ticker"] = q["ticker"][0]
+            if "event_ticker" in q and q["event_ticker"]:
+                args["event_ticker"] = q["event_ticker"][0]
+            if "status" in q and q["status"]:
+                args["status"] = q["status"][0]
+            if "min_ts" in q and q["min_ts"]:
+                args["min_ts"] = _parse_int(q["min_ts"][0])
+            if "max_ts" in q and q["max_ts"]:
+                args["max_ts"] = _parse_int(q["max_ts"][0])
+            if "limit" in q and q["limit"]:
+                args["limit"] = _parse_int(q["limit"][0])
+            if "cursor" in q and q["cursor"]:
+                args["cursor"] = q["cursor"][0]
+            if "subaccount" in q and q["subaccount"]:
+                args["subaccount"] = _parse_int(q["subaccount"][0])
+            return self._tool_registry.call_tool("get_orders", args)
 
         if path.startswith("/series/") and path.endswith("/open_markets"):
             # /series/{series_ticker}/open_markets

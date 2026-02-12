@@ -118,6 +118,61 @@ class Order:
 
 
 @dataclass
+class PortfolioOrder:
+    # Required string fields
+    order_id: str
+    user_id: str
+    client_order_id: str
+    ticker: str
+    status: str
+    side: str
+    action: str
+    type: str
+
+    # Required int fields
+    yes_price: int
+    no_price: int
+    fill_count: int
+    remaining_count: int
+    initial_count: int
+    taker_fees: int
+    maker_fees: int
+    taker_fill_cost: int
+    maker_fill_cost: int
+    queue_position: int
+
+    # Required string (dollar) fields
+    yes_price_dollars: str
+    no_price_dollars: str
+    fill_count_fp: str
+    remaining_count_fp: str
+    initial_count_fp: str
+    taker_fill_cost_dollars: str
+    maker_fill_cost_dollars: str
+
+    # Optional string fields
+    taker_fees_dollars: str | None = None
+    maker_fees_dollars: str | None = None
+    expiration_time: str | None = None
+    created_time: str | None = None
+    last_update_time: str | None = None
+    self_trade_prevention_type: str | None = None
+    order_group_id: str | None = None
+
+    # Optional bool field
+    cancel_order_on_pause: bool | None = None
+
+    # Optional int field
+    subaccount_number: int | None = None
+
+
+@dataclass
+class PortfolioOrdersList:
+    orders: list[PortfolioOrder]
+    cursor: str | None = None
+
+
+@dataclass
 class TagsByCategories:
     tags_by_categories: dict[str, list[str]]
 

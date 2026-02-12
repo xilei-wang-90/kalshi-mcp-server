@@ -3,6 +3,7 @@ import unittest
 from kalshi_mcp.mcp.handlers import (
     handle_create_subaccount,
     handle_get_balance,
+    handle_get_orders,
     handle_get_series_list,
     handle_get_series_tickers_for_category,
     handle_get_categories,
@@ -18,6 +19,8 @@ from kalshi_mcp.models import (
     Market,
     MarketsList,
     PortfolioBalance,
+    PortfolioOrder,
+    PortfolioOrdersList,
     Series,
     SeriesList,
     SettlementSource,
@@ -205,6 +208,91 @@ class _FakePortfolioService:
 
     def create_subaccount(self) -> CreatedSubaccount:
         return CreatedSubaccount(subaccount_number=3)
+
+    def get_orders(
+        self,
+        *,
+        ticker: str | None = None,
+        event_ticker: str | None = None,
+        min_ts: int | None = None,
+        max_ts: int | None = None,
+        status: str | None = None,
+        limit: int | None = None,
+        cursor: str | None = None,
+        subaccount: int | None = None,
+    ) -> PortfolioOrdersList:
+        _ = (ticker, event_ticker, min_ts, max_ts, status, limit, cursor, subaccount)
+        return PortfolioOrdersList(
+            orders=[
+                PortfolioOrder(
+                    order_id="order-1",
+                    user_id="user-1",
+                    client_order_id="client-1",
+                    ticker="KXBTCUSD-26JAN01-T1",
+                    status="resting",
+                    side="yes",
+                    action="buy",
+                    type="limit",
+                    yes_price=55,
+                    no_price=45,
+                    fill_count=0,
+                    remaining_count=10,
+                    initial_count=10,
+                    taker_fees=0,
+                    maker_fees=0,
+                    taker_fill_cost=0,
+                    maker_fill_cost=0,
+                    queue_position=1,
+                    yes_price_dollars="0.55",
+                    no_price_dollars="0.45",
+                    fill_count_fp="0.0000",
+                    remaining_count_fp="10.0000",
+                    initial_count_fp="10.0000",
+                    taker_fill_cost_dollars="0.00",
+                    maker_fill_cost_dollars="0.00",
+                    subaccount_number=0,
+                )
+            ],
+            cursor="next-cursor",
+        )
+
+
+class _CaptureOrdersPortfolioService(_FakePortfolioService):
+    def __init__(self) -> None:
+        self.last_get_orders_args: dict[str, int | str | None] | None = None
+
+    def get_orders(
+        self,
+        *,
+        ticker: str | None = None,
+        event_ticker: str | None = None,
+        min_ts: int | None = None,
+        max_ts: int | None = None,
+        status: str | None = None,
+        limit: int | None = None,
+        cursor: str | None = None,
+        subaccount: int | None = None,
+    ) -> PortfolioOrdersList:
+        self.last_get_orders_args = {
+            "ticker": ticker,
+            "event_ticker": event_ticker,
+            "min_ts": min_ts,
+            "max_ts": max_ts,
+            "status": status,
+            "limit": limit,
+            "cursor": cursor,
+            "subaccount": subaccount,
+        }
+        return super().get_orders(
+            ticker=ticker,
+            event_ticker=event_ticker,
+            min_ts=min_ts,
+            max_ts=max_ts,
+            status=status,
+            limit=limit,
+            cursor=cursor,
+            subaccount=subaccount,
+        )
 
 class _PagingMarketsMetadataService(_FakeMetadataService):
     def get_markets(
@@ -445,6 +533,54 @@ class HandlersTests(unittest.TestCase):
     def test_create_subaccount_rejects_arguments(self) -> None:
         with self.assertRaises(ValueError):
             handle_create_subaccount(_FakePortfolioService(), {"unexpected": True})
+
+    def test_get_orders_handler(self) -> None:
+        result = handle_get_orders(
+            _FakePortfolioService(),
+            {
+                "ticker": "KXBTCUSD-26JAN01-T1",
+                "event_ticker": "KXBTCUSD-26JAN01",
+                "min_ts": 1700000000,
+                "max_ts": 1700001000,
+                "status": "resting",
+                "limit": 50,
+                "cursor": "c1",
+                "subaccount": 0,
+            },
+        )
+        self.assertEqual(1, len(result["orders"]))
+        self.assertEqual("order-1", result["orders"][0]["order_id"])
+        self.assertEqual("next-cursor", result["cursor"])
+
+    def test_get_orders_defaults_to_optional_filters(self) -> None:
+        service = _CaptureOrdersPortfolioService()
+        result = handle_get_orders(service, None)
+        self.assertEqual(1, len(result["orders"]))
+        self.assertEqual(
+            {
+                "ticker": None,
+                "event_ticker": None,
+                "min_ts": None,
+                "max_ts": None,
+                "status": None,
+                "limit": None,
+                "cursor": None,
+                "subaccount": None,
+            },
+            service.last_get_orders_args,
+        )
+
+    def test_get_orders_rejects_invalid_status(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_orders(_FakePortfolioService(), {"status": "open"})
+
+    def test_get_orders_rejects_invalid_limit(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_orders(_FakePortfolioService(), {"limit": 201})
+
+    def test_get_orders_rejects_invalid_subaccount(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_orders(_FakePortfolioService(), {"subaccount": 33})
 
 
 if __name__ == "__main__":

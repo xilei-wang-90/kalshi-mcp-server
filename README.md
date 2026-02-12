@@ -17,6 +17,18 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
   - Creates a new subaccount (maximum 32 per user)
   - Returns: `subaccount_number` (int, 1-32)
   - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
+- `get_orders`
+  - Calls Kalshi private endpoint: `GET /portfolio/orders`
+  - Optional arguments:
+    - `ticker` (string; market ticker)
+    - `event_ticker` (string; comma-separated event tickers, maximum 10)
+    - `status` (string: resting|canceled|executed)
+    - `min_ts`/`max_ts` (int; unix seconds)
+    - `limit` (int, 1-200)
+    - `cursor` (string)
+    - `subaccount` (int, 0-32)
+  - Returns portfolio orders (and optional pagination cursor)
+  - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
 - `get_categories`
   - Calls Kalshi public endpoint: `GET /search/tags_by_categories`
   - Returns only the category names

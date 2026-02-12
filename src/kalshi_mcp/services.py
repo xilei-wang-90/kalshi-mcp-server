@@ -1,7 +1,15 @@
 """Application-level use cases."""
 
 from .kalshi_client import KalshiClient
-from .models import CreatedSubaccount, MarketsList, PortfolioBalance, SeriesList, SubaccountBalancesList, TagsByCategories
+from .models import (
+    CreatedSubaccount,
+    MarketsList,
+    PortfolioBalance,
+    PortfolioOrdersList,
+    SeriesList,
+    SubaccountBalancesList,
+    TagsByCategories,
+)
 
 
 class MetadataService:
@@ -92,3 +100,26 @@ class PortfolioService:
 
     def create_subaccount(self) -> CreatedSubaccount:
         return self._client.create_subaccount()
+
+    def get_orders(
+        self,
+        *,
+        ticker: str | None = None,
+        event_ticker: str | None = None,
+        min_ts: int | None = None,
+        max_ts: int | None = None,
+        status: str | None = None,
+        limit: int | None = None,
+        cursor: str | None = None,
+        subaccount: int | None = None,
+    ) -> PortfolioOrdersList:
+        return self._client.get_orders(
+            ticker=ticker,
+            event_ticker=event_ticker,
+            min_ts=min_ts,
+            max_ts=max_ts,
+            status=status,
+            limit=limit,
+            cursor=cursor,
+            subaccount=subaccount,
+        )

@@ -17,6 +17,8 @@ from .models import (
     MarketsList,
     MveSelectedLeg,
     PortfolioBalance,
+    PortfolioOrder,
+    PortfolioOrdersList,
     PriceRange,
     Series,
     SeriesList,
@@ -152,6 +154,251 @@ class KalshiClient:
             payload, "subaccount_number", endpoint=endpoint
         )
         return CreatedSubaccount(subaccount_number=subaccount_number)
+
+    def get_orders(
+        self,
+        *,
+        ticker: str | None = None,
+        event_ticker: str | None = None,
+        min_ts: int | None = None,
+        max_ts: int | None = None,
+        status: str | None = None,
+        limit: int | None = None,
+        cursor: str | None = None,
+        subaccount: int | None = None,
+    ) -> PortfolioOrdersList:
+        """Return portfolio orders from Kalshi (GET /portfolio/orders)."""
+        endpoint = "/portfolio/orders"
+        params: dict[str, str] = {}
+        if ticker is not None:
+            params["ticker"] = ticker
+        if event_ticker is not None:
+            params["event_ticker"] = event_ticker
+        if min_ts is not None:
+            params["min_ts"] = str(min_ts)
+        if max_ts is not None:
+            params["max_ts"] = str(max_ts)
+        if status is not None:
+            params["status"] = status
+        if limit is not None:
+            params["limit"] = str(limit)
+        if cursor is not None:
+            params["cursor"] = cursor
+        if subaccount is not None:
+            params["subaccount"] = str(subaccount)
+
+        path = endpoint
+        if params:
+            path = f"{path}?{parse.urlencode(params)}"
+
+        payload = self._get_json(path, authenticated=True)
+
+        raw_orders = payload.get("orders")
+        if not isinstance(raw_orders, list):
+            LOGGER.error(
+                "Unexpected %s payload: expected list at 'orders', got=%s keys=%s",
+                endpoint,
+                self._describe_value(raw_orders),
+                sorted(payload.keys()),
+            )
+            raise KalshiClientError(
+                "Unexpected response shape from Kalshi API: missing 'orders' array."
+            )
+
+        parsed: list[PortfolioOrder] = []
+        for index, item in enumerate(raw_orders):
+            order = self._parse_order(item, index)
+            if order is not None:
+                parsed.append(order)
+
+        next_cursor = payload.get("cursor")
+        if next_cursor is not None and not isinstance(next_cursor, str):
+            LOGGER.warning(
+                "Ignoring unexpected 'cursor' type in orders response: %s",
+                self._describe_value(next_cursor),
+            )
+            next_cursor = None
+        if next_cursor == "":
+            next_cursor = None
+
+        return PortfolioOrdersList(orders=parsed, cursor=next_cursor)
+
+    def _parse_order(self, raw_order: Any, index: int) -> PortfolioOrder | None:
+        if not isinstance(raw_order, dict):
+            LOGGER.warning(
+                "Skipping orders[%s]: expected object, got %s",
+                index,
+                self._describe_value(raw_order),
+            )
+            return None
+
+        required_string_fields = (
+            "order_id",
+            "user_id",
+            "client_order_id",
+            "ticker",
+            "status",
+            "side",
+            "action",
+            "type",
+        )
+        string_values: dict[str, str] = {}
+        for field_name in required_string_fields:
+            value = raw_order.get(field_name)
+            if not isinstance(value, str):
+                LOGGER.warning(
+                    "Skipping orders[%s]: expected '%s' as string, got %s",
+                    index,
+                    field_name,
+                    self._describe_value(value),
+                )
+                return None
+            string_values[field_name] = value
+
+        required_int_fields = (
+            "yes_price",
+            "no_price",
+            "fill_count",
+            "remaining_count",
+            "initial_count",
+            "taker_fees",
+            "maker_fees",
+            "taker_fill_cost",
+            "maker_fill_cost",
+            "queue_position",
+        )
+        int_values: dict[str, int] = {}
+        for field_name in required_int_fields:
+            value = raw_order.get(field_name)
+            if isinstance(value, bool) or not isinstance(value, int):
+                LOGGER.warning(
+                    "Skipping orders[%s]: expected '%s' as int, got %s",
+                    index,
+                    field_name,
+                    self._describe_value(value),
+                )
+                return None
+            int_values[field_name] = value
+
+        required_dollar_fields = (
+            "yes_price_dollars",
+            "no_price_dollars",
+            "fill_count_fp",
+            "remaining_count_fp",
+            "initial_count_fp",
+            "taker_fill_cost_dollars",
+            "maker_fill_cost_dollars",
+        )
+        dollar_values: dict[str, str] = {}
+        for field_name in required_dollar_fields:
+            value = raw_order.get(field_name)
+            if not isinstance(value, str):
+                LOGGER.warning(
+                    "Skipping orders[%s]: expected '%s' as string, got %s",
+                    index,
+                    field_name,
+                    self._describe_value(value),
+                )
+                return None
+            dollar_values[field_name] = value
+
+        # Optional string fields
+        opt_taker_fees_dollars = self._optional_order_str(raw_order, "taker_fees_dollars", index)
+        opt_maker_fees_dollars = self._optional_order_str(raw_order, "maker_fees_dollars", index)
+        opt_expiration_time = self._optional_order_str(raw_order, "expiration_time", index)
+        opt_created_time = self._optional_order_str(raw_order, "created_time", index)
+        opt_last_update_time = self._optional_order_str(raw_order, "last_update_time", index)
+        opt_self_trade_prevention_type = self._optional_order_str(
+            raw_order, "self_trade_prevention_type", index
+        )
+        opt_order_group_id = self._optional_order_str(raw_order, "order_group_id", index)
+
+        # Optional bool field
+        opt_cancel_order_on_pause = self._optional_order_bool(
+            raw_order, "cancel_order_on_pause", index
+        )
+
+        # Optional int field
+        opt_subaccount_number = self._optional_order_int(raw_order, "subaccount_number", index)
+
+        return PortfolioOrder(
+            order_id=string_values["order_id"],
+            user_id=string_values["user_id"],
+            client_order_id=string_values["client_order_id"],
+            ticker=string_values["ticker"],
+            status=string_values["status"],
+            side=string_values["side"],
+            action=string_values["action"],
+            type=string_values["type"],
+            yes_price=int_values["yes_price"],
+            no_price=int_values["no_price"],
+            fill_count=int_values["fill_count"],
+            remaining_count=int_values["remaining_count"],
+            initial_count=int_values["initial_count"],
+            taker_fees=int_values["taker_fees"],
+            maker_fees=int_values["maker_fees"],
+            taker_fill_cost=int_values["taker_fill_cost"],
+            maker_fill_cost=int_values["maker_fill_cost"],
+            queue_position=int_values["queue_position"],
+            yes_price_dollars=dollar_values["yes_price_dollars"],
+            no_price_dollars=dollar_values["no_price_dollars"],
+            fill_count_fp=dollar_values["fill_count_fp"],
+            remaining_count_fp=dollar_values["remaining_count_fp"],
+            initial_count_fp=dollar_values["initial_count_fp"],
+            taker_fill_cost_dollars=dollar_values["taker_fill_cost_dollars"],
+            maker_fill_cost_dollars=dollar_values["maker_fill_cost_dollars"],
+            taker_fees_dollars=opt_taker_fees_dollars,
+            maker_fees_dollars=opt_maker_fees_dollars,
+            expiration_time=opt_expiration_time,
+            created_time=opt_created_time,
+            last_update_time=opt_last_update_time,
+            self_trade_prevention_type=opt_self_trade_prevention_type,
+            order_group_id=opt_order_group_id,
+            cancel_order_on_pause=opt_cancel_order_on_pause,
+            subaccount_number=opt_subaccount_number,
+        )
+
+    def _optional_order_str(self, raw: dict[str, Any], key: str, index: int) -> str | None:
+        value = raw.get(key)
+        if value is None:
+            return None
+        if isinstance(value, str):
+            return value
+        LOGGER.warning(
+            "Ignoring unexpected '%s' type in orders[%s]: %s",
+            key,
+            index,
+            self._describe_value(value),
+        )
+        return None
+
+    def _optional_order_int(self, raw: dict[str, Any], key: str, index: int) -> int | None:
+        value = raw.get(key)
+        if value is None:
+            return None
+        if isinstance(value, bool) or not isinstance(value, int):
+            LOGGER.warning(
+                "Ignoring unexpected '%s' type in orders[%s]: %s",
+                key,
+                index,
+                self._describe_value(value),
+            )
+            return None
+        return value
+
+    def _optional_order_bool(self, raw: dict[str, Any], key: str, index: int) -> bool | None:
+        value = raw.get(key)
+        if value is None:
+            return None
+        if isinstance(value, bool):
+            return value
+        LOGGER.warning(
+            "Ignoring unexpected '%s' type in orders[%s]: %s",
+            key,
+            index,
+            self._describe_value(value),
+        )
+        return None
 
     def get_series_list(
         self,

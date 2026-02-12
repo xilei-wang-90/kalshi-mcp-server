@@ -290,6 +290,62 @@ CREATE_SUBACCOUNT_TOOL = {
     },
 }
 
+GET_ORDERS_TOOL = {
+    "name": "get_orders",
+    "description": (
+        "Get your Kalshi portfolio orders. "
+        "Uses GET /portfolio/orders (requires API key authentication)."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "ticker": {
+                "type": "string",
+                "description": "Filter by market ticker.",
+                "minLength": 1,
+            },
+            "event_ticker": {
+                "type": "string",
+                "description": "Comma-separated event tickers to filter (maximum 10).",
+                "minLength": 1,
+            },
+            "min_ts": {
+                "type": "integer",
+                "description": "Filter orders after this Unix timestamp.",
+                "minimum": 0,
+            },
+            "max_ts": {
+                "type": "integer",
+                "description": "Filter orders before this Unix timestamp.",
+                "minimum": 0,
+            },
+            "status": {
+                "type": "string",
+                "description": "Filter by order status.",
+                "enum": ["resting", "canceled", "executed"],
+            },
+            "limit": {
+                "type": "integer",
+                "description": "Number of results per page (1-200). Defaults to 100.",
+                "minimum": 1,
+                "maximum": 200,
+            },
+            "cursor": {
+                "type": "string",
+                "description": "Pagination cursor.",
+                "minLength": 1,
+            },
+            "subaccount": {
+                "type": "integer",
+                "description": "Subaccount number (0 for primary, 1-32 for subaccounts).",
+                "minimum": 0,
+                "maximum": 32,
+            },
+        },
+        "additionalProperties": False,
+    },
+}
+
 GET_SERIES_TICKERS_FOR_CATEGORY_TOOL = {
     "name": "get_series_tickers_for_category",
     "description": (
