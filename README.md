@@ -8,6 +8,9 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
 - `get_balance`
   - Calls Kalshi private endpoint: `GET /portfolio/balance`
   - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
+- `get_subaccount_balances`
+  - Calls Kalshi private endpoint: `GET /portfolio/subaccounts/balances`
+  - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
 - `get_categories`
   - Calls Kalshi public endpoint: `GET /search/tags_by_categories`
   - Returns only the category names

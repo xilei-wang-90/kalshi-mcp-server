@@ -121,6 +121,10 @@ If the tool should be accessible as a resource URI, add a template and route.
 
 Add test cases using fake service mocks.
 
+### 8. Document in README (`README.md`)
+
+Add the new tool to the "Implemented Tools" section in `README.md`, following the format of existing tool entries. Include the endpoint, authentication requirements, and any arguments.
+
 ## Configuration
 
 Environment variables (can be set in `.env`):
