@@ -276,6 +276,20 @@ GET_SUBACCOUNT_BALANCES_TOOL = {
     },
 }
 
+CREATE_SUBACCOUNT_TOOL = {
+    "name": "create_subaccount",
+    "description": (
+        "Create a new subaccount in your Kalshi portfolio. "
+        "Maximum 32 subaccounts per user. "
+        "Uses POST /portfolio/subaccounts (requires API key authentication)."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {},
+        "additionalProperties": False,
+    },
+}
+
 GET_SERIES_TICKERS_FOR_CATEGORY_TOOL = {
     "name": "get_series_tickers_for_category",
     "description": (

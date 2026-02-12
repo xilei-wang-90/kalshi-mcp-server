@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from ..models import (
+    CreatedSubaccount,
     Market,
     MarketsList,
     MveSelectedLeg,
@@ -122,6 +123,9 @@ def build_tool_handlers(
         "get_series_tickers_for_category": lambda arguments: (
             handle_get_series_tickers_for_category(metadata_service, arguments)
         ),
+        "create_subaccount": lambda arguments: (
+            handle_create_subaccount(portfolio_service, arguments)
+        ),
     }
 
 
@@ -181,6 +185,20 @@ def _serialize_subaccount_balance(item: SubaccountBalance) -> dict[str, Any]:
         "balance": item.balance,
         "updated_ts": item.updated_ts,
     }
+
+
+def handle_create_subaccount(
+    portfolio_service: PortfolioService, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    if arguments:
+        raise ValueError("create_subaccount does not accept arguments.")
+
+    result = portfolio_service.create_subaccount()
+    return _serialize_created_subaccount(result)
+
+
+def _serialize_created_subaccount(result: CreatedSubaccount) -> dict[str, Any]:
+    return {"subaccount_number": result.subaccount_number}
 
 
 def handle_get_categories(

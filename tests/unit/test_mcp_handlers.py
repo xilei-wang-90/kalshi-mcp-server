@@ -1,6 +1,7 @@
 import unittest
 
 from kalshi_mcp.mcp.handlers import (
+    handle_create_subaccount,
     handle_get_balance,
     handle_get_series_list,
     handle_get_series_tickers_for_category,
@@ -13,6 +14,7 @@ from kalshi_mcp.mcp.handlers import (
     handle_get_open_market_titles_for_series,
 )
 from kalshi_mcp.models import (
+    CreatedSubaccount,
     Market,
     MarketsList,
     PortfolioBalance,
@@ -200,6 +202,9 @@ class _FakePortfolioService:
                 ),
             ]
         )
+
+    def create_subaccount(self) -> CreatedSubaccount:
+        return CreatedSubaccount(subaccount_number=3)
 
 class _PagingMarketsMetadataService(_FakeMetadataService):
     def get_markets(
@@ -432,6 +437,14 @@ class HandlersTests(unittest.TestCase):
     def test_get_open_market_titles_for_series_requires_arguments(self) -> None:
         with self.assertRaises(ValueError):
             handle_get_open_market_titles_for_series(_FakeMetadataService(), None)
+
+    def test_create_subaccount_handler(self) -> None:
+        result = handle_create_subaccount(_FakePortfolioService(), None)
+        self.assertEqual({"subaccount_number": 3}, result)
+
+    def test_create_subaccount_rejects_arguments(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_create_subaccount(_FakePortfolioService(), {"unexpected": True})
 
 
 if __name__ == "__main__":

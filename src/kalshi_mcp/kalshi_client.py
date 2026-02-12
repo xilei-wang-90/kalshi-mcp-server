@@ -12,6 +12,7 @@ from urllib import parse
 from urllib import error, request
 
 from .models import (
+    CreatedSubaccount,
     Market,
     MarketsList,
     MveSelectedLeg,
@@ -142,6 +143,15 @@ class KalshiClient:
             )
 
         return SubaccountBalancesList(subaccount_balances=parsed)
+
+    def create_subaccount(self) -> CreatedSubaccount:
+        """Create a new subaccount and return its number."""
+        endpoint = "/portfolio/subaccounts"
+        payload = self._post_json(endpoint, authenticated=True)
+        subaccount_number = self._require_int_field(
+            payload, "subaccount_number", endpoint=endpoint
+        )
+        return CreatedSubaccount(subaccount_number=subaccount_number)
 
     def get_series_list(
         self,
@@ -917,6 +927,91 @@ class KalshiClient:
 
         try:
             decoded = json.loads(body)
+        except json.JSONDecodeError as exc:
+            raise KalshiClientError(f"Kalshi API response was not valid JSON for {url}") from exc
+
+        if not isinstance(decoded, dict):
+            raise KalshiClientError(f"Kalshi API returned a non-object payload for {url}")
+
+        return decoded
+
+    def _post_json(
+        self,
+        path: str,
+        *,
+        authenticated: bool = False,
+        body: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        url = f"{self._base_url}{path}"
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+        }
+        if authenticated:
+            headers.update(self._require_auth_headers("POST", path))
+
+        data = json.dumps(body).encode("utf-8") if body is not None else None
+        req = request.Request(
+            url=url,
+            method="POST",
+            headers=headers,
+            data=data,
+        )
+        attempts = 0
+        max_attempts = 4
+        while True:
+            try:
+                with request.urlopen(req, timeout=self._timeout_seconds) as response:
+                    response_body = response.read().decode("utf-8")
+                break
+            except error.HTTPError as exc:
+                attempts += 1
+                retriable = exc.code in (429, 500, 502, 503, 504)
+                if retriable and attempts < max_attempts:
+                    retry_after = None
+                    try:
+                        retry_after = exc.headers.get("Retry-After")
+                    except Exception:
+                        retry_after = None
+
+                    backoff = 0.25 * (2 ** (attempts - 1)) + random.uniform(0, 0.25)
+                    if retry_after:
+                        try:
+                            backoff = max(backoff, float(retry_after))
+                        except ValueError:
+                            pass
+                    backoff = min(backoff, 5.0)
+
+                    LOGGER.warning(
+                        "Kalshi API HTTP %s for %s; retrying in %.2fs (attempt %s/%s)",
+                        exc.code,
+                        url,
+                        backoff,
+                        attempts,
+                        max_attempts,
+                    )
+                    time.sleep(backoff)
+                    continue
+
+                raise KalshiClientError(f"Kalshi API HTTP {exc.code} for {url}") from exc
+            except error.URLError as exc:
+                attempts += 1
+                if attempts < max_attempts:
+                    backoff = min(0.25 * (2 ** (attempts - 1)) + random.uniform(0, 0.25), 2.0)
+                    LOGGER.warning(
+                        "Kalshi API request failed for %s: %s; retrying in %.2fs (attempt %s/%s)",
+                        url,
+                        exc.reason,
+                        backoff,
+                        attempts,
+                        max_attempts,
+                    )
+                    time.sleep(backoff)
+                    continue
+                raise KalshiClientError(f"Kalshi API request failed for {url}: {exc.reason}") from exc
+
+        try:
+            decoded = json.loads(response_body)
         except json.JSONDecodeError as exc:
             raise KalshiClientError(f"Kalshi API response was not valid JSON for {url}") from exc
 

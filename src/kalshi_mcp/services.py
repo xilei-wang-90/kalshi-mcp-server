@@ -1,7 +1,7 @@
 """Application-level use cases."""
 
 from .kalshi_client import KalshiClient
-from .models import MarketsList, PortfolioBalance, SeriesList, SubaccountBalancesList, TagsByCategories
+from .models import CreatedSubaccount, MarketsList, PortfolioBalance, SeriesList, SubaccountBalancesList, TagsByCategories
 
 
 class MetadataService:
@@ -89,3 +89,6 @@ class PortfolioService:
 
     def get_subaccount_balances(self) -> SubaccountBalancesList:
         return self._client.get_subaccount_balances()
+
+    def create_subaccount(self) -> CreatedSubaccount:
+        return self._client.create_subaccount()

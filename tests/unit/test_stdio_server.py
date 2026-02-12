@@ -206,6 +206,7 @@ class StdioServerTests(unittest.TestCase):
                 "get_open_markets_for_series",
                 "get_open_market_titles_for_series",
                 "get_series_tickers_for_category",
+                "create_subaccount",
             ],
             tool_names,
         )

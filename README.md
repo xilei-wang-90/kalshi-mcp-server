@@ -11,6 +11,12 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
 - `get_subaccount_balances`
   - Calls Kalshi private endpoint: `GET /portfolio/subaccounts/balances`
   - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
+- `create_subaccount`
+  - Calls Kalshi private endpoint: `POST /portfolio/subaccounts`
+  - No arguments
+  - Creates a new subaccount (maximum 32 per user)
+  - Returns: `subaccount_number` (int, 1-32)
+  - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
 - `get_categories`
   - Calls Kalshi public endpoint: `GET /search/tags_by_categories`
   - Returns only the category names

@@ -144,6 +144,12 @@ class SubaccountBalancesList:
 
 
 @dataclass
+class CreatedSubaccount:
+    """Result of creating a new subaccount."""
+    subaccount_number: int
+
+
+@dataclass
 class SettlementSource:
     name: str
     url: str
