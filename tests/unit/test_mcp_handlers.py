@@ -1,6 +1,7 @@
 import unittest
 
 from kalshi_mcp.mcp.handlers import (
+    handle_create_order,
     handle_create_subaccount,
     handle_get_balance,
     handle_get_orders,
@@ -15,6 +16,7 @@ from kalshi_mcp.mcp.handlers import (
     handle_get_open_market_titles_for_series,
 )
 from kalshi_mcp.models import (
+    CreateOrderParams,
     CreatedSubaccount,
     Market,
     MarketsList,
@@ -208,6 +210,36 @@ class _FakePortfolioService:
 
     def create_subaccount(self) -> CreatedSubaccount:
         return CreatedSubaccount(subaccount_number=3)
+
+    def create_order(self, params: CreateOrderParams) -> PortfolioOrder:
+        _ = params
+        return PortfolioOrder(
+            order_id="order-new",
+            user_id="user-1",
+            client_order_id="client-new",
+            ticker=params.ticker,
+            status="resting",
+            side=params.side,
+            action=params.action,
+            type="limit",
+            yes_price=55,
+            no_price=45,
+            fill_count=0,
+            remaining_count=10,
+            initial_count=10,
+            taker_fees=0,
+            maker_fees=0,
+            taker_fill_cost=0,
+            maker_fill_cost=0,
+            queue_position=1,
+            yes_price_dollars="0.55",
+            no_price_dollars="0.45",
+            fill_count_fp="0.0000",
+            remaining_count_fp="10.0000",
+            initial_count_fp="10.0000",
+            taker_fill_cost_dollars="0.00",
+            maker_fill_cost_dollars="0.00",
+        )
 
     def get_orders(
         self,
@@ -581,6 +613,96 @@ class HandlersTests(unittest.TestCase):
     def test_get_orders_rejects_invalid_subaccount(self) -> None:
         with self.assertRaises(ValueError):
             handle_get_orders(_FakePortfolioService(), {"subaccount": 33})
+
+    def test_create_order_required_only(self) -> None:
+        result = handle_create_order(
+            _FakePortfolioService(),
+            {"ticker": "KXBTCUSD-26JAN01-T1", "side": "yes", "action": "buy"},
+        )
+        self.assertEqual("order-new", result["order_id"])
+        self.assertEqual("KXBTCUSD-26JAN01-T1", result["ticker"])
+        self.assertEqual("yes", result["side"])
+        self.assertEqual("buy", result["action"])
+        self.assertEqual("resting", result["status"])
+
+    def test_create_order_all_arguments(self) -> None:
+        result = handle_create_order(
+            _FakePortfolioService(),
+            {
+                "ticker": "KXBTCUSD-26JAN01-T1",
+                "side": "no",
+                "action": "sell",
+                "client_order_id": "my-order-1",
+                "count": 5,
+                "count_fp": "5.0000",
+                "yes_price": 55,
+                "no_price": 45,
+                "yes_price_dollars": "0.55",
+                "no_price_dollars": "0.45",
+                "expiration_ts": 1700000000,
+                "time_in_force": "good_till_canceled",
+                "buy_max_cost": 1000,
+                "sell_position_floor": 0,
+                "post_only": True,
+                "reduce_only": True,
+                "self_trade_prevention_type": "maker",
+                "order_group_id": "group-1",
+                "cancel_order_on_pause": True,
+                "subaccount": 1,
+            },
+        )
+        self.assertEqual("order-new", result["order_id"])
+        self.assertEqual("no", result["side"])
+        self.assertEqual("sell", result["action"])
+
+    def test_create_order_missing_required_arguments(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_create_order(_FakePortfolioService(), None)
+
+    def test_create_order_missing_ticker(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_create_order(
+                _FakePortfolioService(),
+                {"side": "yes", "action": "buy"},
+            )
+
+    def test_create_order_invalid_side(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_create_order(
+                _FakePortfolioService(),
+                {"ticker": "KXBTCUSD-26JAN01-T1", "side": "maybe", "action": "buy"},
+            )
+
+    def test_create_order_invalid_action(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_create_order(
+                _FakePortfolioService(),
+                {"ticker": "KXBTCUSD-26JAN01-T1", "side": "yes", "action": "hold"},
+            )
+
+    def test_create_order_invalid_time_in_force(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_create_order(
+                _FakePortfolioService(),
+                {
+                    "ticker": "KXBTCUSD-26JAN01-T1",
+                    "side": "yes",
+                    "action": "buy",
+                    "time_in_force": "day",
+                },
+            )
+
+    def test_create_order_invalid_sell_position_floor(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_create_order(
+                _FakePortfolioService(),
+                {
+                    "ticker": "KXBTCUSD-26JAN01-T1",
+                    "side": "yes",
+                    "action": "buy",
+                    "sell_position_floor": 1,
+                },
+            )
 
 
 if __name__ == "__main__":

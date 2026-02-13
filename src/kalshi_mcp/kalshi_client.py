@@ -12,6 +12,7 @@ from urllib import parse
 from urllib import error, request
 
 from .models import (
+    CreateOrderParams,
     CreatedSubaccount,
     Market,
     MarketsList,
@@ -154,6 +155,59 @@ class KalshiClient:
             payload, "subaccount_number", endpoint=endpoint
         )
         return CreatedSubaccount(subaccount_number=subaccount_number)
+
+    def create_order(self, params: CreateOrderParams) -> PortfolioOrder:
+        """Create an order on Kalshi (POST /portfolio/orders)."""
+        endpoint = "/portfolio/orders"
+        body: dict[str, Any] = {
+            "ticker": params.ticker,
+            "side": params.side,
+            "action": params.action,
+        }
+        optional_fields: dict[str, Any] = {
+            "client_order_id": params.client_order_id,
+            "count": params.count,
+            "count_fp": params.count_fp,
+            "yes_price": params.yes_price,
+            "no_price": params.no_price,
+            "yes_price_dollars": params.yes_price_dollars,
+            "no_price_dollars": params.no_price_dollars,
+            "expiration_ts": params.expiration_ts,
+            "time_in_force": params.time_in_force,
+            "buy_max_cost": params.buy_max_cost,
+            "sell_position_floor": params.sell_position_floor,
+            "post_only": params.post_only,
+            "reduce_only": params.reduce_only,
+            "self_trade_prevention_type": params.self_trade_prevention_type,
+            "order_group_id": params.order_group_id,
+            "cancel_order_on_pause": params.cancel_order_on_pause,
+            "subaccount": params.subaccount,
+        }
+        for key, value in optional_fields.items():
+            if value is not None:
+                body[key] = value
+
+        payload = self._post_json(endpoint, authenticated=True, body=body)
+
+        raw_order = payload.get("order")
+        if not isinstance(raw_order, dict):
+            LOGGER.error(
+                "Unexpected %s payload: expected object at 'order', got=%s keys=%s",
+                endpoint,
+                self._describe_value(raw_order),
+                sorted(payload.keys()),
+            )
+            raise KalshiClientError(
+                "Unexpected response shape from Kalshi API: missing 'order' object."
+            )
+
+        order = self._parse_order(raw_order, 0)
+        if order is None:
+            raise KalshiClientError(
+                "Unexpected response shape from Kalshi API: "
+                "unable to parse order from response."
+            )
+        return order
 
     def get_orders(
         self,

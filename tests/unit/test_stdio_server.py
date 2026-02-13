@@ -208,6 +208,7 @@ class StdioServerTests(unittest.TestCase):
                 "get_series_tickers_for_category",
                 "create_subaccount",
                 "get_orders",
+                "create_order",
             ],
             tool_names,
         )

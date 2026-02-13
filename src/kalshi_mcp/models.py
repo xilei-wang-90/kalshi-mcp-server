@@ -205,6 +205,31 @@ class CreatedSubaccount:
 
 
 @dataclass
+class CreateOrderParams:
+    """Parameters for creating an order via POST /portfolio/orders."""
+    ticker: str
+    side: str
+    action: str
+    client_order_id: str | None = None
+    count: int | None = None
+    count_fp: str | None = None
+    yes_price: int | None = None
+    no_price: int | None = None
+    yes_price_dollars: str | None = None
+    no_price_dollars: str | None = None
+    expiration_ts: int | None = None
+    time_in_force: str | None = None
+    buy_max_cost: int | None = None
+    sell_position_floor: int | None = None
+    post_only: bool | None = None
+    reduce_only: bool | None = None
+    self_trade_prevention_type: str | None = None
+    order_group_id: str | None = None
+    cancel_order_on_pause: bool | None = None
+    subaccount: int | None = None
+
+
+@dataclass
 class SettlementSource:
     name: str
     url: str

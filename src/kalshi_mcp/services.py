@@ -2,9 +2,11 @@
 
 from .kalshi_client import KalshiClient
 from .models import (
+    CreateOrderParams,
     CreatedSubaccount,
     MarketsList,
     PortfolioBalance,
+    PortfolioOrder,
     PortfolioOrdersList,
     SeriesList,
     SubaccountBalancesList,
@@ -123,3 +125,6 @@ class PortfolioService:
             cursor=cursor,
             subaccount=subaccount,
         )
+
+    def create_order(self, params: CreateOrderParams) -> PortfolioOrder:
+        return self._client.create_order(params)
