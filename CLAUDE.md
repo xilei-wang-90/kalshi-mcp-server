@@ -42,7 +42,7 @@ src/kalshi_mcp/
 
 ## Adding a New Tool
 
-To add a new tool, modify these files in order but do not modify existing model unless it is only an extension, do not break existing tools:
+To add a new tool, modify these files in order:
 
 ### 1. Define the Schema (`mcp/schema.py`)
 
@@ -65,7 +65,18 @@ GET_NEW_TOOL = {
 }
 ```
 
-### 2. Add Client Method (`kalshi_client.py`)
+### 2. Add Model Dataclass (`models.py`)
+
+If the new tool returns data not represented by an existing model, add a new dataclass. **Do not modify existing model dataclasses**, as other tools and their tests depend on them.
+
+```python
+@dataclasses.dataclass(frozen=True, slots=True)
+class NewData:
+    field1: str
+    field2: int
+```
+
+### 3. Add Client Method (`kalshi_client.py`)
 
 ```python
 def get_new_data(self, param1: str) -> SomeModel:
@@ -75,7 +86,7 @@ def get_new_data(self, param1: str) -> SomeModel:
     return SomeModel(...)
 ```
 
-### 3. Add Service Method (`services.py`)
+### 4. Add Service Method (`services.py`)
 
 ```python
 # In MetadataService or PortfolioService
@@ -83,7 +94,7 @@ def get_new_data(self, param1: str) -> SomeModel:
     return self._client.get_new_data(param1)
 ```
 
-### 4. Add Handler Function (`mcp/handlers.py`)
+### 5. Add Handler Function (`mcp/handlers.py`)
 
 ```python
 def handle_get_new_tool(
@@ -100,7 +111,7 @@ Register in `build_tool_handlers()`:
 "get_new_tool": lambda arguments: handle_get_new_tool(metadata_service, arguments),
 ```
 
-### 5. Register Schema (`server.py`)
+### 6. Register Schema (`server.py`)
 
 Import and add to `ToolRegistry.list_tools()`:
 ```python
@@ -113,15 +124,15 @@ def list_tools(self) -> list[dict[str, Any]]:
     ]
 ```
 
-### 6. (Optional) Add Resource Route (`mcp/resources.py`)
+### 7. (Optional) Add Resource Route (`mcp/resources.py`)
 
 If the tool should be accessible as a resource URI, add a template and route.
 
-### 7. Add Tests (`tests/unit/test_mcp_handlers.py`)
+### 8. Add Tests (`tests/unit/test_mcp_handlers.py`)
 
 Add test cases using fake service mocks.
 
-### 8. Document in README (`README.md`)
+### 9. Document in README (`README.md`)
 
 Add the new tool to the "Implemented Tools" section in `README.md`, following the format of existing tool entries. Include the endpoint, authentication requirements, and any arguments.
 
