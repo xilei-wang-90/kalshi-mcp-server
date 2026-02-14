@@ -126,5 +126,8 @@ class PortfolioService:
             subaccount=subaccount,
         )
 
+    def get_order(self, order_id: str) -> PortfolioOrder:
+        return self._client.get_order(order_id)
+
     def create_order(self, params: CreateOrderParams) -> PortfolioOrder:
         return self._client.create_order(params)

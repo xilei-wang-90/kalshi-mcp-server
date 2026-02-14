@@ -277,6 +277,29 @@ class KalshiClient:
 
         return PortfolioOrdersList(orders=parsed, cursor=next_cursor)
 
+    def get_order(self, order_id: str) -> PortfolioOrder:
+        """Return a single portfolio order by ID from Kalshi."""
+        path = f"/portfolio/orders/{parse.quote(order_id, safe='')}"
+        payload = self._get_json(path, authenticated=True)
+
+        raw_order = payload.get("order")
+        if not isinstance(raw_order, dict):
+            LOGGER.error(
+                "GET /portfolio/orders/%s: 'order' is not an object: %s",
+                order_id,
+                self._describe_value(raw_order),
+            )
+            raise KalshiClientError(
+                f"GET /portfolio/orders/{order_id}: expected 'order' object in response."
+            )
+
+        order = self._parse_order(raw_order, 0)
+        if order is None:
+            raise KalshiClientError(
+                f"GET /portfolio/orders/{order_id}: unable to parse order from response."
+            )
+        return order
+
     def _parse_order(self, raw_order: Any, index: int) -> PortfolioOrder | None:
         if not isinstance(raw_order, dict):
             LOGGER.warning(

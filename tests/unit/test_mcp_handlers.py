@@ -4,6 +4,7 @@ from kalshi_mcp.mcp.handlers import (
     handle_create_order,
     handle_create_subaccount,
     handle_get_balance,
+    handle_get_order,
     handle_get_orders,
     handle_get_series_list,
     handle_get_series_tickers_for_category,
@@ -210,6 +211,36 @@ class _FakePortfolioService:
 
     def create_subaccount(self) -> CreatedSubaccount:
         return CreatedSubaccount(subaccount_number=3)
+
+    def get_order(self, order_id: str) -> PortfolioOrder:
+        return PortfolioOrder(
+            order_id=order_id,
+            user_id="user-1",
+            client_order_id="client-1",
+            ticker="KXBTCUSD-26JAN01-T1",
+            status="resting",
+            side="yes",
+            action="buy",
+            type="limit",
+            yes_price=55,
+            no_price=45,
+            fill_count=0,
+            remaining_count=10,
+            initial_count=10,
+            taker_fees=0,
+            maker_fees=0,
+            taker_fill_cost=0,
+            maker_fill_cost=0,
+            queue_position=1,
+            yes_price_dollars="0.55",
+            no_price_dollars="0.45",
+            fill_count_fp="0.0000",
+            remaining_count_fp="10.0000",
+            initial_count_fp="10.0000",
+            taker_fill_cost_dollars="0.00",
+            maker_fill_cost_dollars="0.00",
+            subaccount_number=0,
+        )
 
     def create_order(self, params: CreateOrderParams) -> PortfolioOrder:
         _ = params
@@ -703,6 +734,31 @@ class HandlersTests(unittest.TestCase):
                     "sell_position_floor": 1,
                 },
             )
+
+    def test_get_order_handler(self) -> None:
+        result = handle_get_order(
+            _FakePortfolioService(),
+            {"order_id": "order-abc-123"},
+        )
+        self.assertEqual("order-abc-123", result["order_id"])
+        self.assertEqual("user-1", result["user_id"])
+        self.assertEqual("KXBTCUSD-26JAN01-T1", result["ticker"])
+        self.assertEqual("resting", result["status"])
+        self.assertEqual("yes", result["side"])
+        self.assertEqual("buy", result["action"])
+        self.assertEqual(0, result["subaccount_number"])
+
+    def test_get_order_requires_arguments(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_order(_FakePortfolioService(), None)
+
+    def test_get_order_rejects_empty_order_id(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_order(_FakePortfolioService(), {"order_id": ""})
+
+    def test_get_order_rejects_non_string_order_id(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_order(_FakePortfolioService(), {"order_id": 123})
 
 
 if __name__ == "__main__":

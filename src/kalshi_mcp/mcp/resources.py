@@ -104,6 +104,11 @@ class ResourceRegistry:
                 description="Market series list, optionally filtered by category/tags and including metadata/volume.",
             ),
             ResourceTemplateDescriptor(
+                uriTemplate="kalshi:///portfolio/orders/{order_id}",
+                name="Kalshi Portfolio Order",
+                description="A single authenticated portfolio order by ID.",
+            ),
+            ResourceTemplateDescriptor(
                 uriTemplate=(
                     "kalshi:///portfolio/orders{?ticker,event_ticker,status,min_ts,max_ts,limit,cursor,subaccount}"
                 ),
@@ -188,6 +193,14 @@ class ResourceRegistry:
             if "include_volume" in q and q["include_volume"]:
                 args["include_volume"] = _parse_bool(q["include_volume"][0])
             return self._tool_registry.call_tool("get_series_list", args)
+
+        if path.startswith("/portfolio/orders/"):
+            # /portfolio/orders/{order_id}
+            parts = [p for p in path.split("/") if p]
+            if len(parts) != 3 or parts[0] != "portfolio" or parts[1] != "orders":
+                raise ValueError("Invalid portfolio order resource uri")
+            order_id = parse.unquote(parts[2])
+            return self._tool_registry.call_tool("get_order", {"order_id": order_id})
 
         if path == "/portfolio/orders":
             args: dict[str, Any] = {}

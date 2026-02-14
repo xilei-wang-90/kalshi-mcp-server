@@ -29,6 +29,12 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
     - `subaccount` (int, 0-32)
   - Returns portfolio orders (and optional pagination cursor)
   - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
+- `get_order`
+  - Calls Kalshi private endpoint: `GET /portfolio/orders/{order_id}`
+  - Required arguments:
+    - `order_id` (string; the order identifier)
+  - Returns a single order object with all order fields
+  - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
 - `create_order`
   - Calls Kalshi private endpoint: `POST /portfolio/orders`
   - Required arguments:

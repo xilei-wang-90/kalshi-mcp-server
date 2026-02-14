@@ -522,6 +522,138 @@ class KalshiClientTests(unittest.TestCase):
 
         self.assertTrue(any("expected list at 'orders'" in message for message in captured.output))
 
+    def test_get_order_success(self) -> None:
+        order_data = {
+            "order_id": "abc-123",
+            "user_id": "user-1",
+            "client_order_id": "client-1",
+            "ticker": "KXBTCUSD-26JAN01-T1",
+            "status": "resting",
+            "side": "yes",
+            "action": "buy",
+            "type": "limit",
+            "yes_price": 51,
+            "no_price": 49,
+            "fill_count": 0,
+            "remaining_count": 10,
+            "initial_count": 10,
+            "taker_fees": 0,
+            "maker_fees": 0,
+            "taker_fill_cost": 0,
+            "maker_fill_cost": 0,
+            "queue_position": 1,
+            "yes_price_dollars": "0.51",
+            "no_price_dollars": "0.49",
+            "fill_count_fp": "0.0000",
+            "remaining_count_fp": "10.0000",
+            "initial_count_fp": "10.0000",
+            "taker_fill_cost_dollars": "0.00",
+            "maker_fill_cost_dollars": "0.00",
+            "created_time": "2025-01-01T00:00:00Z",
+            "subaccount_number": 0,
+        }
+        payload = {"order": order_data}
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps(payload)),
+        ) as mocked_urlopen, patch.object(
+            client,
+            "_sign_message",
+            return_value="signed-message",
+        ) as mocked_sign, patch(
+            "kalshi_mcp.kalshi_client.time.time",
+            return_value=1700000000.123,
+        ):
+            result = client.get_order("abc-123")
+
+        self.assertEqual("abc-123", result.order_id)
+        self.assertEqual("user-1", result.user_id)
+        self.assertEqual("KXBTCUSD-26JAN01-T1", result.ticker)
+        self.assertEqual("resting", result.status)
+        self.assertEqual("yes", result.side)
+        self.assertEqual("buy", result.action)
+        self.assertEqual("limit", result.type)
+        self.assertEqual(51, result.yes_price)
+        self.assertEqual(49, result.no_price)
+        self.assertEqual("0.51", result.yes_price_dollars)
+        self.assertEqual("2025-01-01T00:00:00Z", result.created_time)
+        self.assertEqual(0, result.subaccount_number)
+
+        request_obj = mocked_urlopen.call_args.args[0]
+        full_url = request_obj.get_full_url()
+        self.assertTrue(full_url.endswith("/portfolio/orders/abc-123"))
+        self.assertEqual("GET", request_obj.get_method())
+
+        header_items = {key.lower(): value for key, value in request_obj.header_items()}
+        self.assertEqual("application/json", header_items["accept"])
+        self.assertEqual("test-key-id", header_items["kalshi-access-key"])
+        self.assertEqual("signed-message", header_items["kalshi-access-signature"])
+        self.assertEqual("1700000000123", header_items["kalshi-access-timestamp"])
+
+        mocked_sign.assert_called_once_with(
+            "1700000000123GET/trade-api/v2/portfolio/orders/abc-123"
+        )
+
+    def test_get_order_missing_order_key_raises_and_logs(self) -> None:
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps({"bad": "data"})),
+        ), patch.object(client, "_sign_message", return_value="signed"):
+            with self.assertLogs("kalshi_mcp.kalshi_client", level="ERROR") as captured:
+                with self.assertRaises(KalshiClientError):
+                    client.get_order("abc-123")
+
+        self.assertTrue(
+            any("'order' is not an object" in message for message in captured.output)
+        )
+
+    def test_get_order_order_not_a_dict_raises_and_logs(self) -> None:
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps({"order": "not-a-dict"})),
+        ), patch.object(client, "_sign_message", return_value="signed"):
+            with self.assertLogs("kalshi_mcp.kalshi_client", level="ERROR") as captured:
+                with self.assertRaises(KalshiClientError):
+                    client.get_order("abc-123")
+
+        self.assertTrue(
+            any("'order' is not an object" in message for message in captured.output)
+        )
+
+    def test_get_order_without_api_credentials_raises(self) -> None:
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+        )
+        client = KalshiClient(settings)
+
+        with self.assertRaises(KalshiClientError):
+            client.get_order("abc-123")
+
 
 if __name__ == "__main__":
     unittest.main()

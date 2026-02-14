@@ -463,6 +463,26 @@ CREATE_ORDER_TOOL = {
     },
 }
 
+GET_ORDER_TOOL = {
+    "name": "get_order",
+    "description": (
+        "Get a single Kalshi portfolio order by ID. "
+        "Uses GET /portfolio/orders/{order_id} (requires API key authentication)."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "order_id": {
+                "type": "string",
+                "description": "The order identifier.",
+                "minLength": 1,
+            },
+        },
+        "required": ["order_id"],
+        "additionalProperties": False,
+    },
+}
+
 GET_SERIES_TICKERS_FOR_CATEGORY_TOOL = {
     "name": "get_series_tickers_for_category",
     "description": (

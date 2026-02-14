@@ -132,6 +132,9 @@ def build_tool_handlers(
         "get_orders": lambda arguments: (
             handle_get_orders(portfolio_service, arguments)
         ),
+        "get_order": lambda arguments: (
+            handle_get_order(portfolio_service, arguments)
+        ),
         "create_order": lambda arguments: (
             handle_create_order(portfolio_service, arguments)
         ),
@@ -830,6 +833,20 @@ def _serialize_mve_selected_leg(item: MveSelectedLeg) -> dict[str, Any]:
     }
     _maybe(payload, "yes_settlement_value_dollars", item.yes_settlement_value_dollars)
     return payload
+
+
+def handle_get_order(
+    portfolio_service: PortfolioService, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    args = _require_arguments(arguments, "get_order")
+    order_id = _parse_required_str(
+        args,
+        "order_id",
+        type_error="order_id must be a string.",
+        empty_error="order_id must be a non-empty string.",
+    )
+    order = portfolio_service.get_order(order_id)
+    return _serialize_order(order)
 
 
 def handle_get_orders(
