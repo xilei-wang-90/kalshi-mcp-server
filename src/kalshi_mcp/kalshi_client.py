@@ -12,6 +12,7 @@ from urllib import parse
 from urllib import error, request
 
 from .models import (
+    CancelledOrder,
     CreateOrderParams,
     CreatedSubaccount,
     Market,
@@ -299,6 +300,48 @@ class KalshiClient:
                 f"GET /portfolio/orders/{order_id}: unable to parse order from response."
             )
         return order
+
+    def cancel_order(self, order_id: str, *, subaccount: int | None = None) -> CancelledOrder:
+        """Cancel an order on Kalshi (DELETE /portfolio/orders/{order_id})."""
+        path = f"/portfolio/orders/{parse.quote(order_id, safe='')}"
+        if subaccount is not None:
+            path = f"{path}?subaccount={subaccount}"
+
+        payload = self._delete_json(path, authenticated=True)
+
+        raw_order = payload.get("order")
+        if not isinstance(raw_order, dict):
+            LOGGER.error(
+                "DELETE /portfolio/orders/%s: 'order' is not an object: %s",
+                order_id,
+                self._describe_value(raw_order),
+            )
+            raise KalshiClientError(
+                f"DELETE /portfolio/orders/{order_id}: expected 'order' object in response."
+            )
+
+        order = self._parse_order(raw_order, 0)
+        if order is None:
+            raise KalshiClientError(
+                f"DELETE /portfolio/orders/{order_id}: unable to parse order from response."
+            )
+
+        endpoint = f"/portfolio/orders/{order_id}"
+        reduced_by = self._require_int_field(payload, "reduced_by", endpoint=endpoint)
+
+        reduced_by_fp = payload.get("reduced_by_fp")
+        if not isinstance(reduced_by_fp, str):
+            LOGGER.error(
+                "Unexpected %s payload: expected string at 'reduced_by_fp', got=%s keys=%s",
+                endpoint,
+                self._describe_value(reduced_by_fp),
+                sorted(payload.keys()),
+            )
+            raise KalshiClientError(
+                f"Unexpected response shape from Kalshi API: missing string 'reduced_by_fp'."
+            )
+
+        return CancelledOrder(order=order, reduced_by=reduced_by, reduced_by_fp=reduced_by_fp)
 
     def _parse_order(self, raw_order: Any, index: int) -> PortfolioOrder | None:
         if not isinstance(raw_order, dict):
@@ -1280,6 +1323,79 @@ class KalshiClient:
             method="POST",
             headers=headers,
             data=data,
+        )
+        attempts = 0
+        max_attempts = 4
+        while True:
+            try:
+                with request.urlopen(req, timeout=self._timeout_seconds) as response:
+                    response_body = response.read().decode("utf-8")
+                break
+            except error.HTTPError as exc:
+                attempts += 1
+                retriable = exc.code in (429, 500, 502, 503, 504)
+                if retriable and attempts < max_attempts:
+                    retry_after = None
+                    try:
+                        retry_after = exc.headers.get("Retry-After")
+                    except Exception:
+                        retry_after = None
+
+                    backoff = 0.25 * (2 ** (attempts - 1)) + random.uniform(0, 0.25)
+                    if retry_after:
+                        try:
+                            backoff = max(backoff, float(retry_after))
+                        except ValueError:
+                            pass
+                    backoff = min(backoff, 5.0)
+
+                    LOGGER.warning(
+                        "Kalshi API HTTP %s for %s; retrying in %.2fs (attempt %s/%s)",
+                        exc.code,
+                        url,
+                        backoff,
+                        attempts,
+                        max_attempts,
+                    )
+                    time.sleep(backoff)
+                    continue
+
+                raise KalshiClientError(f"Kalshi API HTTP {exc.code} for {url}") from exc
+            except error.URLError as exc:
+                attempts += 1
+                if attempts < max_attempts:
+                    backoff = min(0.25 * (2 ** (attempts - 1)) + random.uniform(0, 0.25), 2.0)
+                    LOGGER.warning(
+                        "Kalshi API request failed for %s: %s; retrying in %.2fs (attempt %s/%s)",
+                        url,
+                        exc.reason,
+                        backoff,
+                        attempts,
+                        max_attempts,
+                    )
+                    time.sleep(backoff)
+                    continue
+                raise KalshiClientError(f"Kalshi API request failed for {url}: {exc.reason}") from exc
+
+        try:
+            decoded = json.loads(response_body)
+        except json.JSONDecodeError as exc:
+            raise KalshiClientError(f"Kalshi API response was not valid JSON for {url}") from exc
+
+        if not isinstance(decoded, dict):
+            raise KalshiClientError(f"Kalshi API returned a non-object payload for {url}")
+
+        return decoded
+
+    def _delete_json(self, path: str, *, authenticated: bool = False) -> dict[str, Any]:
+        url = f"{self._base_url}{path}"
+        headers = {"Accept": "application/json"}
+        if authenticated:
+            headers.update(self._require_auth_headers("DELETE", path))
+        req = request.Request(
+            url=url,
+            method="DELETE",
+            headers=headers,
         )
         attempts = 0
         max_attempts = 4

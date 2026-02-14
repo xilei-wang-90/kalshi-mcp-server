@@ -483,6 +483,32 @@ GET_ORDER_TOOL = {
     },
 }
 
+CANCEL_ORDER_TOOL = {
+    "name": "cancel_order",
+    "description": (
+        "Cancel a resting order on Kalshi. "
+        "Uses DELETE /portfolio/orders/{order_id} (requires API key authentication)."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "order_id": {
+                "type": "string",
+                "description": "The order identifier to cancel.",
+                "minLength": 1,
+            },
+            "subaccount": {
+                "type": "integer",
+                "description": "Subaccount number (0 for primary, 1-32 for subaccounts).",
+                "minimum": 0,
+                "maximum": 32,
+            },
+        },
+        "required": ["order_id"],
+        "additionalProperties": False,
+    },
+}
+
 GET_SERIES_TICKERS_FOR_CATEGORY_TOOL = {
     "name": "get_series_tickers_for_category",
     "description": (

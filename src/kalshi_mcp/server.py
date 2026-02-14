@@ -11,6 +11,7 @@ from .kalshi_client import KalshiClient
 from .mcp.handlers import ToolHandler, build_tool_handlers
 from .mcp.resources import ResourceRegistry
 from .mcp.schema import (
+    CANCEL_ORDER_TOOL,
     CREATE_ORDER_TOOL,
     CREATE_SUBACCOUNT_TOOL,
     GET_BALANCE_TOOL,
@@ -53,6 +54,7 @@ class ToolRegistry:
             GET_ORDER_TOOL,
             GET_ORDERS_TOOL,
             CREATE_ORDER_TOOL,
+            CANCEL_ORDER_TOOL,
         ]
 
     def call_tool(self, tool_name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:

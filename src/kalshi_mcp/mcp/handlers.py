@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Callable
 
 from ..models import (
+    CancelledOrder,
     CreateOrderParams,
     CreatedSubaccount,
     Market,
@@ -137,6 +138,9 @@ def build_tool_handlers(
         ),
         "create_order": lambda arguments: (
             handle_create_order(portfolio_service, arguments)
+        ),
+        "cancel_order": lambda arguments: (
+            handle_cancel_order(portfolio_service, arguments)
         ),
     }
 
@@ -849,6 +853,28 @@ def handle_get_order(
     return _serialize_order(order)
 
 
+def handle_cancel_order(
+    portfolio_service: PortfolioService, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    args = _require_arguments(arguments, "cancel_order")
+    order_id = _parse_required_str(
+        args,
+        "order_id",
+        type_error="order_id must be a string.",
+        empty_error="order_id must be a non-empty string.",
+    )
+    subaccount = _parse_optional_int(
+        args,
+        "subaccount",
+        type_error="subaccount must be an integer.",
+        range_error="subaccount must be between 0 and 32.",
+        min_value=0,
+        max_value=32,
+    )
+    result = portfolio_service.cancel_order(order_id, subaccount=subaccount)
+    return _serialize_cancelled_order(result)
+
+
 def handle_get_orders(
     portfolio_service: PortfolioService, arguments: dict[str, Any] | None
 ) -> dict[str, Any]:
@@ -1143,6 +1169,14 @@ def _serialize_orders_list(orders_list: PortfolioOrdersList) -> dict[str, Any]:
     if orders_list.cursor is not None:
         serialized["cursor"] = orders_list.cursor
     return serialized
+
+
+def _serialize_cancelled_order(result: CancelledOrder) -> dict[str, Any]:
+    return {
+        "order": _serialize_order(result.order),
+        "reduced_by": result.reduced_by,
+        "reduced_by_fp": result.reduced_by_fp,
+    }
 
 
 def _serialize_order(order: PortfolioOrder) -> dict[str, Any]:

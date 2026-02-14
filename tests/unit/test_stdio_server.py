@@ -210,6 +210,7 @@ class StdioServerTests(unittest.TestCase):
                 "get_order",
                 "get_orders",
                 "create_order",
+                "cancel_order",
             ],
             tool_names,
         )

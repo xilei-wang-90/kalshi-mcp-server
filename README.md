@@ -61,6 +61,14 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
     - `subaccount` (int, 0-32)
   - Returns created order details
   - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
+- `cancel_order`
+  - Calls Kalshi private endpoint: `DELETE /portfolio/orders/{order_id}`
+  - Required arguments:
+    - `order_id` (string; the order identifier)
+  - Optional arguments:
+    - `subaccount` (int, 0-32)
+  - Returns the cancelled order object and the number of contracts reduced (`reduced_by`, `reduced_by_fp`)
+  - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
 - `get_categories`
   - Calls Kalshi public endpoint: `GET /search/tags_by_categories`
   - Returns only the category names

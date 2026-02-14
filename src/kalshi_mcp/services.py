@@ -2,6 +2,7 @@
 
 from .kalshi_client import KalshiClient
 from .models import (
+    CancelledOrder,
     CreateOrderParams,
     CreatedSubaccount,
     MarketsList,
@@ -131,3 +132,6 @@ class PortfolioService:
 
     def create_order(self, params: CreateOrderParams) -> PortfolioOrder:
         return self._client.create_order(params)
+
+    def cancel_order(self, order_id: str, *, subaccount: int | None = None) -> CancelledOrder:
+        return self._client.cancel_order(order_id, subaccount=subaccount)

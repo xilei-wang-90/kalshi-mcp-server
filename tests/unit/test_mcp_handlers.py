@@ -1,6 +1,7 @@
 import unittest
 
 from kalshi_mcp.mcp.handlers import (
+    handle_cancel_order,
     handle_create_order,
     handle_create_subaccount,
     handle_get_balance,
@@ -17,6 +18,7 @@ from kalshi_mcp.mcp.handlers import (
     handle_get_open_market_titles_for_series,
 )
 from kalshi_mcp.models import (
+    CancelledOrder,
     CreateOrderParams,
     CreatedSubaccount,
     Market,
@@ -243,7 +245,6 @@ class _FakePortfolioService:
         )
 
     def create_order(self, params: CreateOrderParams) -> PortfolioOrder:
-        _ = params
         return PortfolioOrder(
             order_id="order-new",
             user_id="user-1",
@@ -270,6 +271,16 @@ class _FakePortfolioService:
             initial_count_fp="10.0000",
             taker_fill_cost_dollars="0.00",
             maker_fill_cost_dollars="0.00",
+        )
+
+    def cancel_order(self, order_id: str, *, subaccount: int | None = None) -> CancelledOrder:
+        order = self.get_order(order_id)
+        order.status = "canceled"
+        order.subaccount_number = subaccount
+        return CancelledOrder(
+            order=order,
+            reduced_by=4,
+            reduced_by_fp="4.0000",
         )
 
     def get_orders(
@@ -356,6 +367,18 @@ class _CaptureOrdersPortfolioService(_FakePortfolioService):
             cursor=cursor,
             subaccount=subaccount,
         )
+
+
+class _CaptureCancelOrderPortfolioService(_FakePortfolioService):
+    def __init__(self) -> None:
+        self.last_cancel_order_args: dict[str, int | str | None] | None = None
+
+    def cancel_order(self, order_id: str, *, subaccount: int | None = None) -> CancelledOrder:
+        self.last_cancel_order_args = {
+            "order_id": order_id,
+            "subaccount": subaccount,
+        }
+        return super().cancel_order(order_id, subaccount=subaccount)
 
 class _PagingMarketsMetadataService(_FakeMetadataService):
     def get_markets(
@@ -759,6 +782,42 @@ class HandlersTests(unittest.TestCase):
     def test_get_order_rejects_non_string_order_id(self) -> None:
         with self.assertRaises(ValueError):
             handle_get_order(_FakePortfolioService(), {"order_id": 123})
+
+    def test_cancel_order_handler(self) -> None:
+        result = handle_cancel_order(
+            _FakePortfolioService(),
+            {"order_id": "order-abc-123", "subaccount": 1},
+        )
+        self.assertEqual("order-abc-123", result["order"]["order_id"])
+        self.assertEqual("canceled", result["order"]["status"])
+        self.assertEqual(1, result["order"]["subaccount_number"])
+        self.assertEqual(4, result["reduced_by"])
+        self.assertEqual("4.0000", result["reduced_by_fp"])
+
+    def test_cancel_order_defaults_optional_subaccount(self) -> None:
+        service = _CaptureCancelOrderPortfolioService()
+        result = handle_cancel_order(service, {"order_id": "order-abc-123"})
+        self.assertEqual("order-abc-123", result["order"]["order_id"])
+        self.assertEqual(
+            {"order_id": "order-abc-123", "subaccount": None},
+            service.last_cancel_order_args,
+        )
+
+    def test_cancel_order_requires_arguments(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_cancel_order(_FakePortfolioService(), None)
+
+    def test_cancel_order_rejects_empty_order_id(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_cancel_order(_FakePortfolioService(), {"order_id": ""})
+
+    def test_cancel_order_rejects_non_string_order_id(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_cancel_order(_FakePortfolioService(), {"order_id": 123})
+
+    def test_cancel_order_rejects_invalid_subaccount(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_cancel_order(_FakePortfolioService(), {"order_id": "order-abc-123", "subaccount": 33})
 
 
 if __name__ == "__main__":

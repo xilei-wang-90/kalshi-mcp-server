@@ -255,6 +255,14 @@ class Series:
 
 
 @dataclass
+class CancelledOrder:
+    """Result of cancelling an order via DELETE /portfolio/orders/{order_id}."""
+    order: PortfolioOrder
+    reduced_by: int
+    reduced_by_fp: str
+
+
+@dataclass
 class SeriesList:
     series: list[Series]
     cursor: str | None = None
