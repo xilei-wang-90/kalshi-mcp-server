@@ -21,6 +21,7 @@ from .mcp.schema import (
     GET_OPEN_MARKET_TITLES_FOR_SERIES_TOOL,
     GET_ORDER_TOOL,
     GET_ORDERS_TOOL,
+    GET_POSITIONS_TOOL,
     GET_SERIES_LIST_TOOL,
     GET_SERIES_TICKERS_FOR_CATEGORY_TOOL,
     GET_SUBACCOUNT_BALANCES_TOOL,
@@ -55,6 +56,7 @@ class ToolRegistry:
             GET_ORDERS_TOOL,
             CREATE_ORDER_TOOL,
             CANCEL_ORDER_TOOL,
+            GET_POSITIONS_TOOL,
         ]
 
     def call_tool(self, tool_name: str, arguments: dict[str, Any] | None = None) -> dict[str, Any]:

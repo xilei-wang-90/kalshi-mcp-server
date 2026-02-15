@@ -9,6 +9,7 @@ from .models import (
     PortfolioBalance,
     PortfolioOrder,
     PortfolioOrdersList,
+    PortfolioPositions,
     SeriesList,
     SubaccountBalancesList,
     TagsByCategories,
@@ -135,3 +136,22 @@ class PortfolioService:
 
     def cancel_order(self, order_id: str, *, subaccount: int | None = None) -> CancelledOrder:
         return self._client.cancel_order(order_id, subaccount=subaccount)
+
+    def get_positions(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int | None = None,
+        count_filter: str | None = None,
+        ticker: str | None = None,
+        event_ticker: str | None = None,
+        subaccount: int | None = None,
+    ) -> PortfolioPositions:
+        return self._client.get_positions(
+            cursor=cursor,
+            limit=limit,
+            count_filter=count_filter,
+            ticker=ticker,
+            event_ticker=event_ticker,
+            subaccount=subaccount,
+        )

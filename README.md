@@ -69,6 +69,17 @@ An mcp server that allows AI to operate on the prediction market, Kalshi
     - `subaccount` (int, 0-32)
   - Returns the cancelled order object and the number of contracts reduced (`reduced_by`, `reduced_by_fp`)
   - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
+- `get_positions`
+  - Calls Kalshi private endpoint: `GET /portfolio/positions`
+  - Optional arguments:
+    - `cursor` (string)
+    - `limit` (int, 1-1000; defaults to 100)
+    - `count_filter` (string; comma-separated from `position` and/or `total_traded`)
+    - `ticker` (string; market ticker)
+    - `event_ticker` (string; comma-separated event tickers, maximum 10)
+    - `subaccount` (int, 0-32)
+  - Returns portfolio positions with `market_positions` and `event_positions` arrays, plus pagination cursor
+  - Requires API key authentication (`KALSHI_API_KEY_ID` + `KALSHI_API_KEY_PATH`)
 - `get_categories`
   - Calls Kalshi public endpoint: `GET /search/tags_by_categories`
   - Returns only the category names

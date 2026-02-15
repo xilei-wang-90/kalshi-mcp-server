@@ -15,12 +15,15 @@ from .models import (
     CancelledOrder,
     CreateOrderParams,
     CreatedSubaccount,
+    EventPosition,
     Market,
+    MarketPosition,
     MarketsList,
     MveSelectedLeg,
     PortfolioBalance,
     PortfolioOrder,
     PortfolioOrdersList,
+    PortfolioPositions,
     PriceRange,
     Series,
     SeriesList,
@@ -342,6 +345,220 @@ class KalshiClient:
             )
 
         return CancelledOrder(order=order, reduced_by=reduced_by, reduced_by_fp=reduced_by_fp)
+
+    def get_positions(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int | None = None,
+        count_filter: str | None = None,
+        ticker: str | None = None,
+        event_ticker: str | None = None,
+        subaccount: int | None = None,
+    ) -> PortfolioPositions:
+        """Return portfolio positions from Kalshi (GET /portfolio/positions)."""
+        endpoint = "/portfolio/positions"
+        params: dict[str, str] = {}
+        if cursor is not None:
+            params["cursor"] = cursor
+        if limit is not None:
+            params["limit"] = str(limit)
+        if count_filter is not None:
+            params["count_filter"] = count_filter
+        if ticker is not None:
+            params["ticker"] = ticker
+        if event_ticker is not None:
+            params["event_ticker"] = event_ticker
+        if subaccount is not None:
+            params["subaccount"] = str(subaccount)
+
+        path = endpoint
+        if params:
+            path = f"{path}?{parse.urlencode(params)}"
+
+        payload = self._get_json(path, authenticated=True)
+
+        # Parse market_positions
+        raw_market_positions = payload.get("market_positions")
+        if not isinstance(raw_market_positions, list):
+            LOGGER.error(
+                "Unexpected %s payload: expected list at 'market_positions', got=%s keys=%s",
+                endpoint,
+                self._describe_value(raw_market_positions),
+                sorted(payload.keys()),
+            )
+            raise KalshiClientError(
+                "Unexpected response shape from Kalshi API: missing 'market_positions' array."
+            )
+
+        parsed_market_positions: list[MarketPosition] = []
+        for index, item in enumerate(raw_market_positions):
+            mp = self._parse_market_position(item, index)
+            if mp is not None:
+                parsed_market_positions.append(mp)
+
+        # Parse event_positions
+        raw_event_positions = payload.get("event_positions")
+        if not isinstance(raw_event_positions, list):
+            LOGGER.error(
+                "Unexpected %s payload: expected list at 'event_positions', got=%s keys=%s",
+                endpoint,
+                self._describe_value(raw_event_positions),
+                sorted(payload.keys()),
+            )
+            raise KalshiClientError(
+                "Unexpected response shape from Kalshi API: missing 'event_positions' array."
+            )
+
+        parsed_event_positions: list[EventPosition] = []
+        for index, item in enumerate(raw_event_positions):
+            ep = self._parse_event_position(item, index)
+            if ep is not None:
+                parsed_event_positions.append(ep)
+
+        # Parse cursor
+        next_cursor = payload.get("cursor")
+        if next_cursor is not None and not isinstance(next_cursor, str):
+            LOGGER.warning(
+                "Ignoring unexpected 'cursor' type in positions response: %s",
+                self._describe_value(next_cursor),
+            )
+            next_cursor = None
+        if next_cursor == "":
+            next_cursor = None
+
+        return PortfolioPositions(
+            cursor=next_cursor,
+            market_positions=parsed_market_positions,
+            event_positions=parsed_event_positions,
+        )
+
+    def _parse_market_position(self, raw: Any, index: int) -> MarketPosition | None:
+        if not isinstance(raw, dict):
+            LOGGER.warning(
+                "Skipping market_positions[%s]: expected object, got %s",
+                index,
+                self._describe_value(raw),
+            )
+            return None
+
+        required_string_fields = (
+            "ticker",
+            "total_traded_dollars",
+            "position_fp",
+            "market_exposure_dollars",
+            "realized_pnl_dollars",
+            "fees_paid_dollars",
+        )
+        string_values: dict[str, str] = {}
+        for field_name in required_string_fields:
+            value = raw.get(field_name)
+            if not isinstance(value, str):
+                LOGGER.warning(
+                    "Skipping market_positions[%s]: expected '%s' as string, got %s",
+                    index, field_name, self._describe_value(value),
+                )
+                return None
+            string_values[field_name] = value
+
+        required_int_fields = ("total_traded", "position", "market_exposure",
+                               "realized_pnl", "resting_orders_count", "fees_paid")
+        int_values: dict[str, int] = {}
+        for field_name in required_int_fields:
+            value = raw.get(field_name)
+            if isinstance(value, bool) or not isinstance(value, int):
+                LOGGER.warning(
+                    "Skipping market_positions[%s]: expected '%s' as int, got %s",
+                    index, field_name, self._describe_value(value),
+                )
+                return None
+            int_values[field_name] = value
+
+        last_updated_ts = raw.get("last_updated_ts")
+        if last_updated_ts is not None and not isinstance(last_updated_ts, str):
+            LOGGER.warning(
+                "Ignoring market_positions[%s].last_updated_ts with unexpected type %s",
+                index,
+                self._describe_value(last_updated_ts),
+            )
+            last_updated_ts = None
+
+        return MarketPosition(
+            ticker=string_values["ticker"],
+            total_traded=int_values["total_traded"],
+            total_traded_dollars=string_values["total_traded_dollars"],
+            position=int_values["position"],
+            position_fp=string_values["position_fp"],
+            market_exposure=int_values["market_exposure"],
+            market_exposure_dollars=string_values["market_exposure_dollars"],
+            realized_pnl=int_values["realized_pnl"],
+            realized_pnl_dollars=string_values["realized_pnl_dollars"],
+            resting_orders_count=int_values["resting_orders_count"],
+            fees_paid=int_values["fees_paid"],
+            fees_paid_dollars=string_values["fees_paid_dollars"],
+            last_updated_ts=last_updated_ts,
+        )
+
+    def _parse_event_position(self, raw: Any, index: int) -> EventPosition | None:
+        if not isinstance(raw, dict):
+            LOGGER.warning(
+                "Skipping event_positions[%s]: expected object, got %s",
+                index,
+                self._describe_value(raw),
+            )
+            return None
+
+        required_string_fields = ("event_ticker", "total_cost_dollars", "total_cost_shares_fp",
+                                  "event_exposure_dollars", "realized_pnl_dollars",
+                                  "fees_paid_dollars")
+        string_values: dict[str, str] = {}
+        for field_name in required_string_fields:
+            value = raw.get(field_name)
+            if not isinstance(value, str):
+                LOGGER.warning(
+                    "Skipping event_positions[%s]: expected '%s' as string, got %s",
+                    index, field_name, self._describe_value(value),
+                )
+                return None
+            string_values[field_name] = value
+
+        required_int_fields = ("total_cost", "total_cost_shares", "event_exposure",
+                               "realized_pnl", "fees_paid")
+        int_values: dict[str, int] = {}
+        for field_name in required_int_fields:
+            value = raw.get(field_name)
+            if isinstance(value, bool) or not isinstance(value, int):
+                LOGGER.warning(
+                    "Skipping event_positions[%s]: expected '%s' as int, got %s",
+                    index, field_name, self._describe_value(value),
+                )
+                return None
+            int_values[field_name] = value
+
+        resting_orders_count = raw.get("resting_orders_count")
+        if resting_orders_count is not None:
+            if isinstance(resting_orders_count, bool) or not isinstance(resting_orders_count, int):
+                LOGGER.warning(
+                    "Ignoring event_positions[%s].resting_orders_count with unexpected type %s",
+                    index,
+                    self._describe_value(resting_orders_count),
+                )
+                resting_orders_count = None
+
+        return EventPosition(
+            event_ticker=string_values["event_ticker"],
+            total_cost=int_values["total_cost"],
+            total_cost_dollars=string_values["total_cost_dollars"],
+            total_cost_shares=int_values["total_cost_shares"],
+            total_cost_shares_fp=string_values["total_cost_shares_fp"],
+            event_exposure=int_values["event_exposure"],
+            event_exposure_dollars=string_values["event_exposure_dollars"],
+            realized_pnl=int_values["realized_pnl"],
+            realized_pnl_dollars=string_values["realized_pnl_dollars"],
+            fees_paid=int_values["fees_paid"],
+            fees_paid_dollars=string_values["fees_paid_dollars"],
+            resting_orders_count=resting_orders_count,
+        )
 
     def _parse_order(self, raw_order: Any, index: int) -> PortfolioOrder | None:
         if not isinstance(raw_order, dict):

@@ -509,6 +509,54 @@ CANCEL_ORDER_TOOL = {
     },
 }
 
+GET_POSITIONS_TOOL = {
+    "name": "get_positions",
+    "description": (
+        "Get your Kalshi portfolio positions. "
+        "Uses GET /portfolio/positions (requires API key authentication)."
+    ),
+    "inputSchema": {
+        "type": "object",
+        "properties": {
+            "cursor": {
+                "type": "string",
+                "description": "Pagination cursor.",
+                "minLength": 1,
+            },
+            "limit": {
+                "type": "integer",
+                "description": "Number of results per page (1-1000).",
+                "minimum": 1,
+                "maximum": 1000,
+            },
+            "count_filter": {
+                "type": "string",
+                "description": (
+                    "Comma-separated fields that must be non-zero. "
+                    "Allowed values: position, total_traded."
+                ),
+            },
+            "ticker": {
+                "type": "string",
+                "description": "Filter by market ticker.",
+                "minLength": 1,
+            },
+            "event_ticker": {
+                "type": "string",
+                "description": "Filter by event ticker (or comma-separated list, maximum 10).",
+                "minLength": 1,
+            },
+            "subaccount": {
+                "type": "integer",
+                "description": "Subaccount number (0 for primary, 1-32 for subaccounts).",
+                "minimum": 0,
+                "maximum": 32,
+            },
+        },
+        "additionalProperties": False,
+    },
+}
+
 GET_SERIES_TICKERS_FOR_CATEGORY_TOOL = {
     "name": "get_series_tickers_for_category",
     "description": (

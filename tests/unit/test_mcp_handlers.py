@@ -7,6 +7,7 @@ from kalshi_mcp.mcp.handlers import (
     handle_get_balance,
     handle_get_order,
     handle_get_orders,
+    handle_get_positions,
     handle_get_series_list,
     handle_get_series_tickers_for_category,
     handle_get_categories,
@@ -21,11 +22,14 @@ from kalshi_mcp.models import (
     CancelledOrder,
     CreateOrderParams,
     CreatedSubaccount,
+    EventPosition,
     Market,
+    MarketPosition,
     MarketsList,
     PortfolioBalance,
     PortfolioOrder,
     PortfolioOrdersList,
+    PortfolioPositions,
     Series,
     SeriesList,
     SettlementSource,
@@ -281,6 +285,54 @@ class _FakePortfolioService:
             order=order,
             reduced_by=4,
             reduced_by_fp="4.0000",
+        )
+
+    def get_positions(
+        self,
+        *,
+        cursor: str | None = None,
+        limit: int | None = None,
+        count_filter: str | None = None,
+        ticker: str | None = None,
+        event_ticker: str | None = None,
+        subaccount: int | None = None,
+    ) -> PortfolioPositions:
+        _ = (cursor, limit, count_filter, ticker, event_ticker, subaccount)
+        return PortfolioPositions(
+            cursor="next-pos-cursor",
+            market_positions=[
+                MarketPosition(
+                    ticker="KXBTCUSD-26JAN01-T1",
+                    total_traded=100,
+                    total_traded_dollars="100.00",
+                    position=10,
+                    position_fp="10.0000",
+                    market_exposure=50,
+                    market_exposure_dollars="50.00",
+                    realized_pnl=5,
+                    realized_pnl_dollars="5.00",
+                    resting_orders_count=2,
+                    fees_paid=1,
+                    fees_paid_dollars="1.00",
+                    last_updated_ts="1731000000000",
+                ),
+            ],
+            event_positions=[
+                EventPosition(
+                    event_ticker="KXBTCUSD-26JAN01",
+                    total_cost=200,
+                    total_cost_dollars="200.00",
+                    total_cost_shares=20,
+                    total_cost_shares_fp="20.0000",
+                    event_exposure=100,
+                    event_exposure_dollars="100.00",
+                    realized_pnl=10,
+                    realized_pnl_dollars="10.00",
+                    fees_paid=2,
+                    fees_paid_dollars="2.00",
+                    resting_orders_count=1,
+                ),
+            ],
         )
 
     def get_orders(
@@ -818,6 +870,64 @@ class HandlersTests(unittest.TestCase):
     def test_cancel_order_rejects_invalid_subaccount(self) -> None:
         with self.assertRaises(ValueError):
             handle_cancel_order(_FakePortfolioService(), {"order_id": "order-abc-123", "subaccount": 33})
+
+    def test_handle_get_positions(self) -> None:
+        result = handle_get_positions(_FakePortfolioService(), None)
+        self.assertEqual(1, len(result["market_positions"]))
+        self.assertEqual("KXBTCUSD-26JAN01-T1", result["market_positions"][0]["ticker"])
+        self.assertEqual(10, result["market_positions"][0]["position"])
+        self.assertEqual("10.0000", result["market_positions"][0]["position_fp"])
+        self.assertEqual(50, result["market_positions"][0]["market_exposure"])
+        self.assertEqual("50.00", result["market_positions"][0]["market_exposure_dollars"])
+        self.assertEqual(5, result["market_positions"][0]["realized_pnl"])
+        self.assertEqual(2, result["market_positions"][0]["resting_orders_count"])
+        self.assertEqual(1, result["market_positions"][0]["fees_paid"])
+        self.assertEqual("1731000000000", result["market_positions"][0]["last_updated_ts"])
+
+        self.assertEqual(1, len(result["event_positions"]))
+        self.assertEqual("KXBTCUSD-26JAN01", result["event_positions"][0]["event_ticker"])
+        self.assertEqual(200, result["event_positions"][0]["total_cost"])
+        self.assertEqual("200.00", result["event_positions"][0]["total_cost_dollars"])
+        self.assertEqual(20, result["event_positions"][0]["total_cost_shares"])
+        self.assertEqual(100, result["event_positions"][0]["event_exposure"])
+        self.assertEqual(10, result["event_positions"][0]["realized_pnl"])
+        self.assertEqual(1, result["event_positions"][0]["resting_orders_count"])
+
+        self.assertEqual("next-pos-cursor", result["cursor"])
+
+    def test_handle_get_positions_with_filters(self) -> None:
+        result = handle_get_positions(
+            _FakePortfolioService(),
+            {
+                "cursor": "c1",
+                "limit": 100,
+                "count_filter": "position,total_traded",
+                "ticker": "KXBTCUSD-26JAN01-T1",
+                "event_ticker": "KXBTCUSD-26JAN01",
+                "subaccount": 0,
+            },
+        )
+        self.assertEqual(1, len(result["market_positions"]))
+        self.assertEqual(1, len(result["event_positions"]))
+
+    def test_handle_get_positions_rejects_invalid_count_filter(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_positions(_FakePortfolioService(), {"count_filter": "invalid"})
+
+    def test_handle_get_positions_rejects_invalid_count_filter_csv(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_positions(
+                _FakePortfolioService(),
+                {"count_filter": "position,invalid"},
+            )
+
+    def test_handle_get_positions_rejects_invalid_limit(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_positions(_FakePortfolioService(), {"limit": 0})
+
+    def test_handle_get_positions_rejects_invalid_subaccount(self) -> None:
+        with self.assertRaises(ValueError):
+            handle_get_positions(_FakePortfolioService(), {"subaccount": 33})
 
 
 if __name__ == "__main__":

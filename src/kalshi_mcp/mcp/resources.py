@@ -67,6 +67,11 @@ class ResourceRegistry:
                 description="Authenticated subaccount balances.",
             ),
             ResourceDescriptor(
+                uri="kalshi:///portfolio/positions",
+                name="Kalshi Portfolio Positions",
+                description="Authenticated portfolio positions.",
+            ),
+            ResourceDescriptor(
                 uri="kalshi:///tags_by_categories",
                 name="Kalshi Tags By Categories",
                 description="Kalshi tags grouped by series category.",
@@ -114,6 +119,13 @@ class ResourceRegistry:
                 ),
                 name="Kalshi Portfolio Orders",
                 description="Authenticated portfolio orders, optionally filtered.",
+            ),
+            ResourceTemplateDescriptor(
+                uriTemplate=(
+                    "kalshi:///portfolio/positions{?cursor,limit,count_filter,ticker,event_ticker,subaccount}"
+                ),
+                name="Kalshi Portfolio Positions",
+                description="Authenticated portfolio positions, optionally filtered.",
             ),
         ]
         return [item.to_dict() for item in templates]
@@ -222,6 +234,23 @@ class ResourceRegistry:
             if "subaccount" in q and q["subaccount"]:
                 args["subaccount"] = _parse_int(q["subaccount"][0])
             return self._tool_registry.call_tool("get_orders", args)
+
+        if path == "/portfolio/positions":
+            args: dict[str, Any] = {}
+            q = parse.parse_qs(query, keep_blank_values=False)
+            if "cursor" in q and q["cursor"]:
+                args["cursor"] = q["cursor"][0]
+            if "limit" in q and q["limit"]:
+                args["limit"] = _parse_int(q["limit"][0])
+            if "count_filter" in q and q["count_filter"]:
+                args["count_filter"] = q["count_filter"][0]
+            if "ticker" in q and q["ticker"]:
+                args["ticker"] = q["ticker"][0]
+            if "event_ticker" in q and q["event_ticker"]:
+                args["event_ticker"] = q["event_ticker"][0]
+            if "subaccount" in q and q["subaccount"]:
+                args["subaccount"] = _parse_int(q["subaccount"][0])
+            return self._tool_registry.call_tool("get_positions", args)
 
         if path.startswith("/series/") and path.endswith("/open_markets"):
             # /series/{series_ticker}/open_markets

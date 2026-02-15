@@ -789,6 +789,259 @@ class KalshiClientTests(unittest.TestCase):
         with self.assertRaises(KalshiClientError):
             client.get_order("abc-123")
 
+    def test_get_positions_success(self) -> None:
+        payload = {
+            "cursor": "next-page",
+            "market_positions": [
+                {
+                    "ticker": "KXBTCUSD-26JAN01-T1",
+                    "total_traded": 100,
+                    "total_traded_dollars": "100.00",
+                    "position": 10,
+                    "position_fp": "10.0000",
+                    "market_exposure": 500,
+                    "market_exposure_dollars": "5.00",
+                    "realized_pnl": 50,
+                    "realized_pnl_dollars": "0.50",
+                    "resting_orders_count": 2,
+                    "fees_paid": 5,
+                    "fees_paid_dollars": "0.05",
+                    "last_updated_ts": "2024-01-01T00:00:00Z",
+                }
+            ],
+            "event_positions": [
+                {
+                    "event_ticker": "KXBTCUSD-26JAN01",
+                    "total_cost": 200,
+                    "total_cost_dollars": "2.00",
+                    "total_cost_shares": 20,
+                    "total_cost_shares_fp": "20.0000",
+                    "event_exposure": 300,
+                    "event_exposure_dollars": "3.00",
+                    "realized_pnl": 25,
+                    "realized_pnl_dollars": "0.25",
+                    "resting_orders_count": 4,
+                    "fees_paid": 3,
+                    "fees_paid_dollars": "0.03",
+                }
+            ],
+        }
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps(payload)),
+        ) as mocked_urlopen, patch.object(
+            client,
+            "_sign_message",
+            return_value="signed-message",
+        ) as mocked_sign, patch(
+            "kalshi_mcp.kalshi_client.time.time",
+            return_value=1700000000.123,
+        ):
+            result = client.get_positions(
+                ticker="KXBTCUSD-26JAN01-T1",
+                event_ticker="KXBTCUSD-26JAN01",
+                limit=10,
+                cursor="c1",
+                count_filter="position",
+                subaccount=0,
+            )
+
+        self.assertEqual(1, len(result.market_positions))
+        mp = result.market_positions[0]
+        self.assertEqual("KXBTCUSD-26JAN01-T1", mp.ticker)
+        self.assertEqual(100, mp.total_traded)
+        self.assertEqual("100.00", mp.total_traded_dollars)
+        self.assertEqual(10, mp.position)
+        self.assertEqual("10.0000", mp.position_fp)
+        self.assertEqual(500, mp.market_exposure)
+        self.assertEqual("5.00", mp.market_exposure_dollars)
+        self.assertEqual(50, mp.realized_pnl)
+        self.assertEqual("0.50", mp.realized_pnl_dollars)
+        self.assertEqual(2, mp.resting_orders_count)
+        self.assertEqual(5, mp.fees_paid)
+        self.assertEqual("0.05", mp.fees_paid_dollars)
+        self.assertEqual("2024-01-01T00:00:00Z", mp.last_updated_ts)
+
+        self.assertEqual(1, len(result.event_positions))
+        ep = result.event_positions[0]
+        self.assertEqual("KXBTCUSD-26JAN01", ep.event_ticker)
+        self.assertEqual(200, ep.total_cost)
+        self.assertEqual("2.00", ep.total_cost_dollars)
+        self.assertEqual(20, ep.total_cost_shares)
+        self.assertEqual("20.0000", ep.total_cost_shares_fp)
+        self.assertEqual(300, ep.event_exposure)
+        self.assertEqual("3.00", ep.event_exposure_dollars)
+        self.assertEqual(25, ep.realized_pnl)
+        self.assertEqual("0.25", ep.realized_pnl_dollars)
+        self.assertEqual(4, ep.resting_orders_count)
+        self.assertEqual(3, ep.fees_paid)
+        self.assertEqual("0.03", ep.fees_paid_dollars)
+
+        self.assertEqual("next-page", result.cursor)
+
+        request_obj = mocked_urlopen.call_args.args[0]
+        full_url = request_obj.get_full_url()
+        self.assertIn("/portfolio/positions?", full_url)
+        self.assertIn("ticker=KXBTCUSD-26JAN01-T1", full_url)
+        self.assertIn("event_ticker=KXBTCUSD-26JAN01", full_url)
+        self.assertIn("limit=10", full_url)
+        self.assertIn("cursor=c1", full_url)
+        self.assertIn("count_filter=position", full_url)
+        self.assertIn("subaccount=0", full_url)
+
+        mocked_sign.assert_called_once()
+        signed_message = mocked_sign.call_args.args[0]
+        self.assertIn("GET/trade-api/v2/portfolio/positions", signed_message)
+
+    def test_get_positions_missing_market_positions_raises_and_logs(self) -> None:
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps({"foo": "bar"})),
+        ), patch.object(client, "_sign_message", return_value="signed"):
+            with self.assertLogs("kalshi_mcp.kalshi_client", level="ERROR") as captured:
+                with self.assertRaises(KalshiClientError):
+                    client.get_positions()
+
+        self.assertTrue(
+            any("expected list at 'market_positions'" in message for message in captured.output)
+        )
+
+    def test_get_positions_without_api_credentials_raises(self) -> None:
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+        )
+        client = KalshiClient(settings)
+
+        with self.assertRaises(KalshiClientError):
+            client.get_positions()
+
+    def test_get_positions_empty_cursor_normalized_to_none(self) -> None:
+        payload = {
+            "cursor": "",
+            "market_positions": [],
+            "event_positions": [],
+        }
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps(payload)),
+        ), patch.object(client, "_sign_message", return_value="signed"), patch(
+            "kalshi_mcp.kalshi_client.time.time", return_value=1700000000.0,
+        ):
+            result = client.get_positions()
+
+        self.assertIsNone(result.cursor)
+        self.assertEqual([], result.market_positions)
+        self.assertEqual([], result.event_positions)
+
+    def test_get_positions_skips_invalid_market_position(self) -> None:
+        payload = {
+            "cursor": "",
+            "market_positions": [
+                "not-a-dict",
+                {
+                    "ticker": "VALID",
+                    "total_traded": 1,
+                    "total_traded_dollars": "1.00",
+                    "position": 0,
+                    "position_fp": "0.0000",
+                    "market_exposure": 0,
+                    "market_exposure_dollars": "0.00",
+                    "realized_pnl": 0,
+                    "realized_pnl_dollars": "0.00",
+                    "resting_orders_count": 0,
+                    "fees_paid": 0,
+                    "fees_paid_dollars": "0.00",
+                    "last_updated_ts": "2024-01-01T00:00:00Z",
+                },
+            ],
+            "event_positions": [],
+        }
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps(payload)),
+        ), patch.object(client, "_sign_message", return_value="signed"), patch(
+            "kalshi_mcp.kalshi_client.time.time", return_value=1700000000.0,
+        ):
+            with self.assertLogs("kalshi_mcp.kalshi_client", level="WARNING"):
+                result = client.get_positions()
+
+        self.assertEqual(1, len(result.market_positions))
+        self.assertEqual("VALID", result.market_positions[0].ticker)
+
+    def test_get_positions_allows_market_position_without_last_updated_ts(self) -> None:
+        payload = {
+            "cursor": "",
+            "market_positions": [
+                {
+                    "ticker": "VALID",
+                    "total_traded": 1,
+                    "total_traded_dollars": "1.00",
+                    "position": 0,
+                    "position_fp": "0.0000",
+                    "market_exposure": 0,
+                    "market_exposure_dollars": "0.00",
+                    "realized_pnl": 0,
+                    "realized_pnl_dollars": "0.00",
+                    "resting_orders_count": 0,
+                    "fees_paid": 0,
+                    "fees_paid_dollars": "0.00",
+                },
+            ],
+            "event_positions": [],
+        }
+        settings = Settings(
+            base_url="https://api.elections.kalshi.com/trade-api/v2",
+            timeout_seconds=5,
+            api_key_id="test-key-id",
+            api_key_path="/tmp/test-key.pem",
+        )
+        client = KalshiClient(settings)
+
+        with patch(
+            "kalshi_mcp.kalshi_client.request.urlopen",
+            return_value=_FakeResponse(json.dumps(payload)),
+        ), patch.object(client, "_sign_message", return_value="signed"), patch(
+            "kalshi_mcp.kalshi_client.time.time", return_value=1700000000.0,
+        ):
+            result = client.get_positions()
+
+        self.assertEqual(1, len(result.market_positions))
+        self.assertEqual("VALID", result.market_positions[0].ticker)
+        self.assertIsNone(result.market_positions[0].last_updated_ts)
+
 
 if __name__ == "__main__":
     unittest.main()

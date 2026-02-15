@@ -266,3 +266,46 @@ class CancelledOrder:
 class SeriesList:
     series: list[Series]
     cursor: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class MarketPosition:
+    """A single market-level position from GET /portfolio/positions."""
+    ticker: str
+    total_traded: int
+    total_traded_dollars: str
+    position: int
+    position_fp: str
+    market_exposure: int
+    market_exposure_dollars: str
+    realized_pnl: int
+    realized_pnl_dollars: str
+    resting_orders_count: int
+    fees_paid: int
+    fees_paid_dollars: str
+    last_updated_ts: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class EventPosition:
+    """A single event-level position from GET /portfolio/positions."""
+    event_ticker: str
+    total_cost: int
+    total_cost_dollars: str
+    total_cost_shares: int
+    total_cost_shares_fp: str
+    event_exposure: int
+    event_exposure_dollars: str
+    realized_pnl: int
+    realized_pnl_dollars: str
+    fees_paid: int
+    fees_paid_dollars: str
+    resting_orders_count: int | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PortfolioPositions:
+    """Response from GET /portfolio/positions."""
+    cursor: str | None
+    market_positions: list[MarketPosition]
+    event_positions: list[EventPosition]

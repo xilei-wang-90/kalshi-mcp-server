@@ -8,12 +8,15 @@ from ..models import (
     CancelledOrder,
     CreateOrderParams,
     CreatedSubaccount,
+    EventPosition,
     Market,
+    MarketPosition,
     MarketsList,
     MveSelectedLeg,
     PortfolioBalance,
     PortfolioOrder,
     PortfolioOrdersList,
+    PortfolioPositions,
     PriceRange,
     Series,
     SeriesList,
@@ -93,6 +96,25 @@ def _parse_bool(arguments: dict[str, Any], key: str, default: bool, *, type_erro
     return value
 
 
+def _parse_positions_count_filter(value: str) -> str:
+    allowed_fields = {"position", "total_traded"}
+    parts = [item.strip() for item in value.split(",")]
+    if any(not item for item in parts):
+        raise ValueError(
+            "count_filter must be a comma-separated list containing only position and/or total_traded."
+        )
+
+    unknown = [item for item in parts if item not in allowed_fields]
+    if unknown:
+        raise ValueError(
+            "count_filter must be a comma-separated list containing only position and/or total_traded."
+        )
+
+    # Preserve caller order while dropping duplicates.
+    unique_parts = list(dict.fromkeys(parts))
+    return ",".join(unique_parts)
+
+
 def build_tool_handlers(
     metadata_service: MetadataService, portfolio_service: PortfolioService
 ) -> dict[str, ToolHandler]:
@@ -141,6 +163,9 @@ def build_tool_handlers(
         ),
         "cancel_order": lambda arguments: (
             handle_cancel_order(portfolio_service, arguments)
+        ),
+        "get_positions": lambda arguments: (
+            handle_get_positions(portfolio_service, arguments)
         ),
     }
 
@@ -1218,6 +1243,124 @@ def _serialize_order(order: PortfolioOrder) -> dict[str, Any]:
     _maybe(payload, "cancel_order_on_pause", order.cancel_order_on_pause)
     _maybe(payload, "subaccount_number", order.subaccount_number)
 
+    return payload
+
+
+def handle_get_positions(
+    portfolio_service: PortfolioService, arguments: dict[str, Any] | None
+) -> dict[str, Any]:
+    cursor: str | None = None
+    limit: int | None = None
+    count_filter: str | None = None
+    ticker: str | None = None
+    event_ticker: str | None = None
+    subaccount: int | None = None
+
+    if arguments is not None:
+        cursor = _parse_optional_str(
+            arguments,
+            "cursor",
+            type_error="cursor must be a string.",
+            empty_error="cursor must be a non-empty string.",
+        )
+        limit = _parse_optional_int(
+            arguments,
+            "limit",
+            type_error="limit must be an integer.",
+            range_error="limit must be between 1 and 1000.",
+            min_value=1,
+            max_value=1000,
+        )
+
+        count_filter = _parse_optional_str(
+            arguments,
+            "count_filter",
+            type_error="count_filter must be a string.",
+            empty_error="count_filter must be a non-empty string.",
+        )
+        if count_filter is not None:
+            count_filter = _parse_positions_count_filter(count_filter)
+
+        ticker = _parse_optional_str(
+            arguments,
+            "ticker",
+            type_error="ticker must be a string.",
+            empty_error="ticker must be a non-empty string.",
+        )
+        event_ticker = _parse_optional_str(
+            arguments,
+            "event_ticker",
+            type_error="event_ticker must be a string.",
+            empty_error="event_ticker must be a non-empty string.",
+        )
+        subaccount = _parse_optional_int(
+            arguments,
+            "subaccount",
+            type_error="subaccount must be an integer.",
+            range_error="subaccount must be between 0 and 32.",
+            min_value=0,
+            max_value=32,
+        )
+
+    positions = portfolio_service.get_positions(
+        cursor=cursor,
+        limit=limit,
+        count_filter=count_filter,
+        ticker=ticker,
+        event_ticker=event_ticker,
+        subaccount=subaccount,
+    )
+    return _serialize_positions(positions)
+
+
+def _serialize_positions(positions: PortfolioPositions) -> dict[str, Any]:
+    serialized: dict[str, Any] = {
+        "market_positions": [
+            _serialize_market_position(pos) for pos in positions.market_positions
+        ],
+        "event_positions": [
+            _serialize_event_position(pos) for pos in positions.event_positions
+        ],
+    }
+    if positions.cursor is not None:
+        serialized["cursor"] = positions.cursor
+    return serialized
+
+
+def _serialize_market_position(pos: MarketPosition) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "ticker": pos.ticker,
+        "total_traded": pos.total_traded,
+        "total_traded_dollars": pos.total_traded_dollars,
+        "position": pos.position,
+        "position_fp": pos.position_fp,
+        "market_exposure": pos.market_exposure,
+        "market_exposure_dollars": pos.market_exposure_dollars,
+        "realized_pnl": pos.realized_pnl,
+        "realized_pnl_dollars": pos.realized_pnl_dollars,
+        "resting_orders_count": pos.resting_orders_count,
+        "fees_paid": pos.fees_paid,
+        "fees_paid_dollars": pos.fees_paid_dollars,
+    }
+    _maybe(payload, "last_updated_ts", pos.last_updated_ts)
+    return payload
+
+
+def _serialize_event_position(pos: EventPosition) -> dict[str, Any]:
+    payload: dict[str, Any] = {
+        "event_ticker": pos.event_ticker,
+        "total_cost": pos.total_cost,
+        "total_cost_dollars": pos.total_cost_dollars,
+        "total_cost_shares": pos.total_cost_shares,
+        "total_cost_shares_fp": pos.total_cost_shares_fp,
+        "event_exposure": pos.event_exposure,
+        "event_exposure_dollars": pos.event_exposure_dollars,
+        "realized_pnl": pos.realized_pnl,
+        "realized_pnl_dollars": pos.realized_pnl_dollars,
+        "fees_paid": pos.fees_paid,
+        "fees_paid_dollars": pos.fees_paid_dollars,
+    }
+    _maybe(payload, "resting_orders_count", pos.resting_orders_count)
     return payload
 
 

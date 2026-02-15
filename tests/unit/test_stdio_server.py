@@ -211,6 +211,7 @@ class StdioServerTests(unittest.TestCase):
                 "get_orders",
                 "create_order",
                 "cancel_order",
+                "get_positions",
             ],
             tool_names,
         )
@@ -223,6 +224,7 @@ class StdioServerTests(unittest.TestCase):
                 "kalshi:///categories",
                 "kalshi:///portfolio/balance",
                 "kalshi:///portfolio/subaccount_balances",
+                "kalshi:///portfolio/positions",
                 "kalshi:///tags_by_categories",
             ],
             resource_uris,
@@ -242,6 +244,7 @@ class StdioServerTests(unittest.TestCase):
                 "kalshi:///series{?category,tags,cursor,limit,include_product_metadata,include_volume}",
                 "kalshi:///portfolio/orders/{order_id}",
                 "kalshi:///portfolio/orders{?ticker,event_ticker,status,min_ts,max_ts,limit,cursor,subaccount}",
+                "kalshi:///portfolio/positions{?cursor,limit,count_filter,ticker,event_ticker,subaccount}",
             ],
             template_uris,
         )
